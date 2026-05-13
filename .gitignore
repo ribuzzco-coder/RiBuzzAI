@@ -3,3 +3,15 @@ node_modules/
 Thumbs.db
 .env
 .env.*
+
+# Next.js build output
+.next/
+out/
+
+# Logs
+*.log
+next-dev.err.log
+next-dev.log
+
+# TypeScript build info
+*.tsbuildinfo
