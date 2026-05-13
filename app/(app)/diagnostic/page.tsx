@@ -9,7 +9,6 @@ import { ProgressBar } from "@/components/diagnostic/ProgressBar";
 
 export default function DiagnosticPage() {
   const router = useRouter();
-  const supabase = createClient();
   const [diagnosticId, setDiagnosticId] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -17,6 +16,7 @@ export default function DiagnosticPage() {
   // 1. Asegurar diagnóstico (crear si no existe en progreso)
   useEffect(() => {
     (async () => {
+      const supabase = createClient();
       const {
         data: { user }
       } = await supabase.auth.getUser();
