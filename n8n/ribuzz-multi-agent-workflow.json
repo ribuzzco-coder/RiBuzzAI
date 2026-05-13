@@ -1,0 +1,1086 @@
+{
+  "name": "RiBuzz AI · Multi-Agent Workflow v3 (Native AI Blocks)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ribuzz-diagnostic",
+        "responseMode": "responseNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "webhook-entry",
+      "name": "Webhook (entry)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        400
+      ],
+      "webhookId": "ribuzz-diagnostic"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Valida el header secret y extrae payload\nconst secret = $input.first().json.headers['x-ribuzz-secret'];\nconst expected = $env.RIBUZZ_WEBHOOK_SECRET;\nif (!secret || secret !== expected) {\n  throw new Error('Invalid webhook secret');\n}\nconst body = $input.first().json.body;\nif (!body?.job_id || !body?.diagnostic_id) {\n  throw new Error('Missing job_id or diagnostic_id');\n}\nreturn [{ json: { job_id: body.job_id, diagnostic_id: body.diagnostic_id } }];"
+      },
+      "id": "validate-input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "update processing_jobs set status='running', current_phase='fetching_data', progress_pct=5, webhook_id=$1 where id=$2",
+        "options": {
+          "queryReplacement": "={{ $execution.id }},{{ $json.job_id }}"
+        }
+      },
+      "id": "job-running",
+      "name": "Job → running",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        440,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CONN",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select d.id as diagnostic_id, d.company_id, c.name as company_name, c.sector, c.stage, c.size, c.city, u.email, u.name as owner_name, u.whatsapp from diagnostics d join companies c on c.id=d.company_id join users u on u.id=c.user_id where d.id=$1",
+        "options": {
+          "queryReplacement": "={{ $('Validate Input').first().json.diagnostic_id }}"
+        }
+      },
+      "id": "fetch-diagnostic",
+      "name": "Fetch Diagnostic + Company",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        660,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CONN",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select question_number, variable_bd, question_text, answer_text, is_unknown from diagnostic_answers where diagnostic_id=$1 order by question_number",
+        "options": {
+          "queryReplacement": "={{ $('Validate Input').first().json.diagnostic_id }}"
+        }
+      },
+      "id": "fetch-answers",
+      "name": "Fetch 40 Answers",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        880,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CONN",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aplana respuestas variable_bd -> texto. Calcula métricas comerciales.\nconst answers = $input.all().map(i => i.json);\nconst flat = {};\nfor (const a of answers) {\n  const vars = (a.variable_bd || '').split(',').map(v => v.trim());\n  for (const v of vars) flat[v] = a.is_unknown ? '' : (a.answer_text || '');\n}\nfunction num(value, fallback = 0) {\n  if (!value) return fallback;\n  const clean = value.toString().toLowerCase().replace(/[$,\\s]/g, '');\n  const m = clean.match(/\\d+(?:\\.\\d+)?(?:k|m|mm)?/g);\n  if (!m) return fallback;\n  const nums = m.map(x => { let n = parseFloat(x); if (x.endsWith('mm') || x.endsWith('m')) n *= 1e6; else if (x.endsWith('k')) n *= 1e3; return n; });\n  return nums.length >= 2 ? (nums[0] + nums[1]) / 2 : nums[0];\n}\nconst ventas = num(flat.comercial_ventas_mes);\nconst clientes = Math.max(num(flat.comercial_clientes_actuales, 1), 1);\nconst nuevos = num(flat.comercial_clientes_nuevos);\nconst inversion = num(flat.comercial_inversion_mes);\nconst leads = Math.max(num(flat.comercial_leads_mes, 1), 1);\nconst conv = num(flat.comercial_tasa_conversion);\nconst ticket_medio = ventas / clientes;\nconst cac = nuevos > 0 ? inversion / nuevos : inversion;\nconst ltv = ticket_medio * 12;\nconst ratio_cac_ticket = ticket_medio > 0 ? (cac / ticket_medio) * 100 : 100;\nconst ratio_cac_ltv = ltv > 0 ? (cac / ltv) * 100 : 100;\nconst leads_perdidos = Math.round(leads * (1 - conv / 100));\nconst conv_obj = Math.min(conv / 100 + 0.1, 1);\nconst clientes_adicionales = Math.round(leads * (conv_obj - conv / 100));\nconst ingreso_potencial = clientes_adicionales * ticket_medio;\nconst s_ticket = Math.min(ticket_medio / 1e6, 1) * 100;\nconst s_cac = Math.max(0, 100 - ratio_cac_ticket);\nconst s_conv = Math.min(conv * 2, 100);\nconst s_ltv_cac = Math.max(0, 100 - ratio_cac_ltv);\nconst salud_comercial = Math.round(s_ticket * 0.25 + s_cac * 0.3 + s_conv * 0.25 + s_ltv_cac * 0.2);\nconst metrics = {\n  ticket_medio: Math.round(ticket_medio),\n  cac: Math.round(cac),\n  ltv: Math.round(ltv),\n  ratio_cac_ticket: Math.round(ratio_cac_ticket * 10) / 10,\n  ratio_cac_ltv: Math.round(ratio_cac_ltv * 10) / 10,\n  leads_perdidos,\n  ingreso_potencial: Math.round(ingreso_potencial),\n  salud_comercial\n};\nconst company = $('Fetch Diagnostic + Company').first().json;\nreturn [{ json: { answers, flat, metrics, company } }];"
+      },
+      "id": "calc-metrics",
+      "name": "Code: Calculate Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        400
+      ]
+    },
+    {
+      "id": "agent-1-sintetizador",
+      "name": "Agente 1: Sintetizador",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        1320,
+        400
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify({ empresa: $json.company, respuestas: $json.answers }) }}",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "SystemMessage",
+              "message": "Eres el AGENTE 1 - SINTETIZADOR de RiBuzz AI. Estructuras las 40 respuestas del diagnóstico (blueprint v2, bloques A-I) en JSON tipado con las 14 variables del scorer. REGLAS: Si is_unknown=true o answer_text vacío -> registra DESCONOCIDO + agrega a flags[]. Si vago/incompleto -> registra lo que hay + nota en observaciones. NO inventes. Devuelve SOLO JSON. OUTPUT: {empresa:{nombre,sector,etapa,tamano}, variables:{problema:{texto,impacto,completitud,is_unknown}, solucion:{texto,diferenciador,completitud,is_unknown}, icp:{...}, cliente_actual:{...}, oferta:{...}, ecuacion_valor:{...}, ticket_medio:{...}, recurrencia:{...}, canal_adquisicion:{...}, cac:{...}, conversion:{...}, seguimiento:{...}, escalamiento:{...}, capacidad_ejecucion:{...}}, metricas_brutas:{ventas_mes,clientes_actuales,clientes_nuevos,inversion_mes,leads_mes,tasa_conversion}, objetivos:{meta_3m,obstaculo}, flags:[], observaciones:{}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse P1 output (chainLlm returns $json.text directly)\nconst raw = $input.first().json.text;\nconst p1 = JSON.parse(raw.match(/\\{[\\s\\S]*\\}$/m)?.[0] || raw);\nconst metricsCtx = $('Code: Calculate Metrics').first().json;\nreturn [{ json: { p1, metrics: metricsCtx.metrics, company: metricsCtx.company, p1_raw: raw } }];"
+      },
+      "id": "parse-p1",
+      "name": "Parse P1 + Prep Scorers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "update processing_jobs set current_phase='scoring_parallel', progress_pct=25 where id=$1",
+        "options": {
+          "queryReplacement": "={{ $('Validate Input').first().json.job_id }}"
+        }
+      },
+      "id": "job-scoring",
+      "name": "Job → scoring",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CONN",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combina los 4 scorers en un solo objeto scores\n// chainLlm devuelve $json.text en lugar de $json.content[0].text\nconst items = $input.all();\nconst all = {};\nfor (const it of items) {\n  const raw = it.json.text;\n  if (!raw) continue;\n  const parsed = JSON.parse(raw.match(/\\{[\\s\\S]*\\}$/m)?.[0] || raw);\n  Object.assign(all, parsed.scores || {});\n}\nconst values = Object.values(all);\nconst score_global = values.length ? (values.reduce((s, v) => s + v.score, 0) / values.length) : 0;\nconst ctx = $('Parse P1 + Prep Scorers').first().json;\nreturn [{ json: { scores: all, score_global: Math.round(score_global * 10) / 10, p1: ctx.p1, metrics: ctx.metrics, company: ctx.company } }];"
+      },
+      "id": "combine-scores",
+      "name": "Combine 14 Scores",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2460,
+        460
+      ]
+    },
+    {
+      "id": "agent-3-fugas",
+      "name": "Agente 3: Top Fugas",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        2680,
+        460
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify({ scores: $json.scores, score_global: $json.score_global, metrics: $json.metrics, p1: $json.p1 }) }}",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "SystemMessage",
+              "message": "Eres el AGENTE 3 - TOP FUGAS SELECTOR de RiBuzz AI. Recibes los 14 scores y métricas calculadas. SELECCIONA EXACTAMENTE 3 variables como top_fugas aplicando los pesos: impacto potencial en ingresos (40%) + urgencia del problema (30%) + facilidad real de mejora dado el contexto (30%). Desempate: la de score más bajo va primero. Para cada fuga: variable, prioridad (1-3), diagnostico (1 frase específica para esta empresa), recomendacion (1 acción concreta y ejecutable). Devuelve SOLO JSON: {top_fugas:[{variable,prioridad,diagnostico,recomendacion}]}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// chainLlm devuelve $json.text directamente\nconst raw = $input.first().json.text;\nconst fugas = JSON.parse(raw.match(/\\{[\\s\\S]*\\}$/m)?.[0] || raw);\nconst ctx = $('Combine 14 Scores').first().json;\nreturn [{ json: { ...ctx, top_fugas: fugas.top_fugas || [] } }];"
+      },
+      "id": "parse-fugas",
+      "name": "Parse Fugas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2900,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "update processing_jobs set current_phase='writing_report', progress_pct=60 where id=$1",
+        "options": {
+          "queryReplacement": "={{ $('Validate Input').first().json.job_id }}"
+        }
+      },
+      "id": "job-report",
+      "name": "Job → reporting",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        460
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CONN",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "id": "agent-4-reporter",
+      "name": "Agente 4: Reporter",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        3340,
+        460
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify({ p1: $json.p1, scores: $json.scores, top_fugas: $json.top_fugas, metrics: $json.metrics }) }}",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "SystemMessage",
+              "message": "Eres el AGENTE 4 - REPORTER de RiBuzz AI. Recibes scores, top_fugas, métricas y síntesis P1. Generas un reporte que un fundador no técnico entiende en 2 minutos. REGLAS: lenguaje simple, sin tecnicismos, no menciones scores numéricos (usa estados), max 400 palabras en situacion_actual, lectura_principal=1 frase impactante y honesta, siguiente_paso=ejecutable en 7 días. Devuelve SOLO JSON: {situacion_actual, lectura_principal, variables_fuertes:[], variables_debiles:[], recomendacion_general, siguiente_paso}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "agent-5-playbook",
+      "name": "Agente 5: Playbook",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        3560,
+        460
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify({ p1: $('Parse Fugas').first().json.p1, scores: $('Parse Fugas').first().json.scores, top_fugas: $('Parse Fugas').first().json.top_fugas, empresa: $('Parse Fugas').first().json.company }) }}",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "SystemMessage",
+              "message": "Eres el AGENTE 5 - PLAYBOOK STRATEGIST de RiBuzz AI. Diseñas un playbook EJECUTABLE por la empresa SIN acompañamiento, adaptado a su sector y tamaño. REGLAS: solo acciones que pueden ejecutar solos, máximo 3 acciones priorizadas (no abrumes), cada acción debe atacar una de las top_fugas. Cada acción: titulo, que_corregir, por_que, como, metrica, resultado_esperado, tiempo_estimado, prioridad. Devuelve SOLO JSON: {cliente_prioritario, oferta_recomendada, canal_sugerido, mensaje_base, acciones:[{titulo,que_corregir,por_que,como,metrica,resultado_esperado,tiempo_estimado,prioridad}], metricas_a_medir:[], plan_30_dias:{semana_1,semana_2,semana_3,semana_4}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "agent-6-classifier",
+      "name": "Agente 6: Lead Classifier",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        3780,
+        460
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify({ p1: $('Parse Fugas').first().json.p1, scores: $('Parse Fugas').first().json.scores, top_fugas: $('Parse Fugas').first().json.top_fugas, metrics: $('Parse Fugas').first().json.metrics, empresa: $('Parse Fugas').first().json.company }) }}",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "SystemMessage",
+              "message": "Eres el AGENTE 6 - LEAD CLASSIFIER de RiBuzz AI (output SOLO panel interno). Clasificas el lead según fit con RiBuzz, urgencia, capacidad de pago y de ejecución. suggested_route: diagnostico_premium | diseno_comercial | implementacion | growth_partner | no_fit. opening_message: WhatsApp sugerido para primer contacto, max 3 líneas, cálido y específico (menciona algo concreto del diagnóstico). Devuelve SOLO JSON: {status:(mql|sql|no_fit), fit_level:(alto|medio|bajo), urgency:(alta|media|baja), payment_capacity:(alta|media|baja), execution_capacity:(alta|media|baja), suggested_route, justificacion, opening_message}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "agent-7-reviewer",
+      "name": "Agente 7: Quality Reviewer",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        4000,
+        460
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify({ scores: $('Parse Fugas').first().json.scores, score_global: $('Parse Fugas').first().json.score_global, top_fugas: $('Parse Fugas').first().json.top_fugas, reporter: JSON.parse($('Agente 4: Reporter').first().json.text.match(/\\{[\\s\\S]*\\}$/m)?.[0] || $('Agente 4: Reporter').first().json.text), playbook: JSON.parse($('Agente 5: Playbook').first().json.text.match(/\\{[\\s\\S]*\\}$/m)?.[0] || $('Agente 5: Playbook').first().json.text), classification: JSON.parse($('Agente 6: Lead Classifier').first().json.text.match(/\\{[\\s\\S]*\\}$/m)?.[0] || $('Agente 6: Lead Classifier').first().json.text) }) }}",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "SystemMessage",
+              "message": "Eres el AGENTE 7 - QUALITY REVIEWER de RiBuzz AI. Revisas la consistencia de todos los outputs del flujo. Verificas: (1) las top_fugas reflejan los scores más bajos, (2) el playbook ataca las top_fugas, (3) la lectura_principal es coherente con el score_global, (4) el suggested_route del classifier es coherente con fit/payment/execution, (5) ninguna recomendación es genérica o copy-paste. Si todo OK, devuelve {ok:true, observaciones:[]}. Si encuentras incoherencias, devuelve {ok:false, observaciones:[descripciones], severity:(low|medium|high)}. NO modifiques los outputs, solo audita. Devuelve SOLO JSON."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Persistencia: consolida outputs de todos los agentes\n// chainLlm devuelve .text en lugar de .content[0].text\nconst ctx = $('Parse Fugas').first().json;\nconst diagId = $('Validate Input').first().json.diagnostic_id;\nconst jobId = $('Validate Input').first().json.job_id;\nconst parse = (s) => JSON.parse(s.match(/\\{[\\s\\S]*\\}$/m)?.[0] || s);\nconst reporter     = parse($('Agente 4: Reporter').first().json.text);\nconst playbook     = parse($('Agente 5: Playbook').first().json.text);\nconst classification = parse($('Agente 6: Lead Classifier').first().json.text);\nconst review       = parse($('Agente 7: Quality Reviewer').first().json.text);\nreturn [{ json: { diagnostic_id: diagId, job_id: jobId, ctx, reporter, playbook, classification, review } }];"
+      },
+      "id": "prep-persist",
+      "name": "Prep Persistence",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4220,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into scores (diagnostic_id, problema, solucion, icp, cliente_actual, oferta, ecuacion_valor, ticket_medio, recurrencia, canal_adquisicion, cac, conversion, seguimiento, escalamiento, capacidad_ejecucion, score_global, top_fugas, calculated_metrics, raw_ai_response) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) on conflict (diagnostic_id) do update set problema=excluded.problema, solucion=excluded.solucion, icp=excluded.icp, cliente_actual=excluded.cliente_actual, oferta=excluded.oferta, ecuacion_valor=excluded.ecuacion_valor, ticket_medio=excluded.ticket_medio, recurrencia=excluded.recurrencia, canal_adquisicion=excluded.canal_adquisicion, cac=excluded.cac, conversion=excluded.conversion, seguimiento=excluded.seguimiento, escalamiento=excluded.escalamiento, capacidad_ejecucion=excluded.capacidad_ejecucion, score_global=excluded.score_global, top_fugas=excluded.top_fugas, calculated_metrics=excluded.calculated_metrics, raw_ai_response=excluded.raw_ai_response",
+        "options": {
+          "queryReplacement": "={{ $json.diagnostic_id }},{{ $json.ctx.scores.problema?.score || 0 }},{{ $json.ctx.scores.solucion?.score || 0 }},{{ $json.ctx.scores.icp?.score || 0 }},{{ $json.ctx.scores.cliente_actual?.score || 0 }},{{ $json.ctx.scores.oferta?.score || 0 }},{{ $json.ctx.scores.ecuacion_valor?.score || 0 }},{{ $json.ctx.scores.ticket_medio?.score || 0 }},{{ $json.ctx.scores.recurrencia?.score || 0 }},{{ $json.ctx.scores.canal_adquisicion?.score || 0 }},{{ $json.ctx.scores.cac?.score || 0 }},{{ $json.ctx.scores.conversion?.score || 0 }},{{ $json.ctx.scores.seguimiento?.score || 0 }},{{ $json.ctx.scores.escalamiento?.score || 0 }},{{ $json.ctx.scores.capacidad_ejecucion?.score || 0 }},{{ $json.ctx.score_global }},{{ JSON.stringify($json.ctx.top_fugas) }},{{ JSON.stringify($json.ctx.metrics) }},{{ JSON.stringify({ scores_detail: $json.ctx.scores, review: $json.review }) }}"
+        }
+      },
+      "id": "save-scores",
+      "name": "Save Scores",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        4440,
+        320
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CONN",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into reports (diagnostic_id, situacion_actual, lectura_principal, variables_fuertes, variables_debiles, recomendacion_general, siguiente_paso) values ($1,$2,$3,$4,$5,$6,$7) on conflict (diagnostic_id) do update set situacion_actual=excluded.situacion_actual, lectura_principal=excluded.lectura_principal, variables_fuertes=excluded.variables_fuertes, variables_debiles=excluded.variables_debiles, recomendacion_general=excluded.recomendacion_general, siguiente_paso=excluded.siguiente_paso",
+        "options": {
+          "queryReplacement": "={{ $json.diagnostic_id }},{{ $json.reporter.situacion_actual }},{{ $json.reporter.lectura_principal }},{{ JSON.stringify($json.reporter.variables_fuertes || []) }},{{ JSON.stringify($json.reporter.variables_debiles || []) }},{{ $json.reporter.recomendacion_general }},{{ $json.reporter.siguiente_paso }}"
+        }
+      },
+      "id": "save-report",
+      "name": "Save Report",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        4440,
+        460
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CONN",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into playbooks (diagnostic_id, cliente_prioritario, oferta_recomendada, canal_sugerido, mensaje_base, acciones, metricas_a_medir, plan_30_dias) values ($1,$2,$3,$4,$5,$6,$7,$8) on conflict (diagnostic_id) do update set cliente_prioritario=excluded.cliente_prioritario, oferta_recomendada=excluded.oferta_recomendada, canal_sugerido=excluded.canal_sugerido, mensaje_base=excluded.mensaje_base, acciones=excluded.acciones, metricas_a_medir=excluded.metricas_a_medir, plan_30_dias=excluded.plan_30_dias",
+        "options": {
+          "queryReplacement": "={{ $json.diagnostic_id }},{{ $json.playbook.cliente_prioritario }},{{ $json.playbook.oferta_recomendada }},{{ $json.playbook.canal_sugerido }},{{ $json.playbook.mensaje_base }},{{ JSON.stringify($json.playbook.acciones || []) }},{{ JSON.stringify($json.playbook.metricas_a_medir || []) }},{{ JSON.stringify($json.playbook.plan_30_dias || {}) }}"
+        }
+      },
+      "id": "save-playbook",
+      "name": "Save Playbook",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        4440,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CONN",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into leads (diagnostic_id, status, fit_level, urgency, payment_capacity, execution_capacity, suggested_route, justificacion, opening_message) values ($1,$2,$3,$4,$5,$6,$7,$8,$9) on conflict (diagnostic_id) do update set status=excluded.status, fit_level=excluded.fit_level, urgency=excluded.urgency, payment_capacity=excluded.payment_capacity, execution_capacity=excluded.execution_capacity, suggested_route=excluded.suggested_route, justificacion=excluded.justificacion, opening_message=excluded.opening_message",
+        "options": {
+          "queryReplacement": "={{ $json.diagnostic_id }},{{ $json.classification.status }},{{ $json.classification.fit_level }},{{ $json.classification.urgency }},{{ $json.classification.payment_capacity }},{{ $json.classification.execution_capacity }},{{ $json.classification.suggested_route }},{{ $json.classification.justificacion }},{{ $json.classification.opening_message }}"
+        }
+      },
+      "id": "save-lead",
+      "name": "Save Lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        4440,
+        740
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CONN",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "update diagnostics set status='completed', completed_at=now() where id=$1",
+        "options": {
+          "queryReplacement": "={{ $('Prep Persistence').first().json.diagnostic_id }}"
+        }
+      },
+      "id": "mark-completed",
+      "name": "Mark Diagnostic Completed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        4660,
+        460
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CONN",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "update processing_jobs set status='completed', current_phase='done', progress_pct=100, completed_at=now() where id=$1",
+        "options": {
+          "queryReplacement": "={{ $('Prep Persistence').first().json.job_id }}"
+        }
+      },
+      "id": "job-completed",
+      "name": "Job → completed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        4880,
+        460
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CONN",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, diagnostic_id: $('Prep Persistence').first().json.diagnostic_id, score_global: $('Prep Persistence').first().json.ctx.score_global, review_ok: $('Prep Persistence').first().json.review.ok }) }}"
+      },
+      "id": "respond-ok",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        5100,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "update processing_jobs set status='failed', error_message=$1, completed_at=now() where id=$2",
+        "options": {
+          "queryReplacement": "={{ $json.error?.message || 'Unknown error' }},{{ $('Validate Input').first().json.job_id }}"
+        }
+      },
+      "id": "job-failed",
+      "name": "Job → failed (on error)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        2680,
+        800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_CONN",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "id": "model-agent-1-",
+      "name": "Claude · Agente 1: Sintetizador",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        1320,
+        600
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "anthropic-ribuzz",
+          "name": "RiBuzz Anthropic"
+        }
+      },
+      "parameters": {
+        "model": "claude-sonnet-4-5",
+        "options": {
+          "maxTokens": 4096,
+          "temperature": 0
+        }
+      }
+    },
+    {
+      "id": "model-agent-3-",
+      "name": "Claude · Agente 3: Top Fugas",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        2680,
+        660
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "anthropic-ribuzz",
+          "name": "RiBuzz Anthropic"
+        }
+      },
+      "parameters": {
+        "model": "claude-sonnet-4-5",
+        "options": {
+          "maxTokens": 2000,
+          "temperature": 0
+        }
+      }
+    },
+    {
+      "id": "model-agent-4-",
+      "name": "Claude · Agente 4: Reporter",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        3340,
+        660
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "anthropic-ribuzz",
+          "name": "RiBuzz Anthropic"
+        }
+      },
+      "parameters": {
+        "model": "claude-sonnet-4-5",
+        "options": {
+          "maxTokens": 3000,
+          "temperature": 0
+        }
+      }
+    },
+    {
+      "id": "model-agent-5-",
+      "name": "Claude · Agente 5: Playbook",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        3560,
+        660
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "anthropic-ribuzz",
+          "name": "RiBuzz Anthropic"
+        }
+      },
+      "parameters": {
+        "model": "claude-sonnet-4-5",
+        "options": {
+          "maxTokens": 3500,
+          "temperature": 0
+        }
+      }
+    },
+    {
+      "id": "model-agent-6-",
+      "name": "Claude · Agente 6: Lead Classifier",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        3780,
+        660
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "anthropic-ribuzz",
+          "name": "RiBuzz Anthropic"
+        }
+      },
+      "parameters": {
+        "model": "claude-sonnet-4-5",
+        "options": {
+          "maxTokens": 2000,
+          "temperature": 0
+        }
+      }
+    },
+    {
+      "id": "model-agent-7-",
+      "name": "Claude · Agente 7: Quality Reviewer",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        4000,
+        660
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "anthropic-ribuzz",
+          "name": "RiBuzz Anthropic"
+        }
+      },
+      "parameters": {
+        "model": "claude-sonnet-4-5",
+        "options": {
+          "maxTokens": 1500,
+          "temperature": 0
+        }
+      }
+    },
+    {
+      "id": "7b1d5fb8-c950-49ec-8e60-dfbdeb9e97c6",
+      "name": "Prep 4 Scorer Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        460
+      ],
+      "parameters": {
+        "jsCode": "const ctx = $input.first().json;\n\nconst PROMPTS = {\n  '2A': \"Eres el AGENTE 2A - SCORER DE PRODUCT-MARKET FIT de RiBuzz AI. Evalúas 4 variables: problema, solucion, icp, cliente_actual. ESCALA 1-5 (1=Crítico, 2=Débil, 3=Funcional, 4=Fuerte, 5=Escalable). REGLA ESPECIAL: si is_unknown=true -> score máximo 2. RÚBRICA: PROBLEMA: 1 no articula, 2 síntomas vagos, 3 problema claro impacto vago, 4 problema+impacto concreto, 5 cuantificado+urgente. SOLUCIÓN: 1 no explica, 2 vaga sin diferenciador, 3 diferenciador genérico, 4 diferenciador específico, 5 único+demostrable. ICP: 1 no sabe, 2 perfil amplio, 3 perfil sin patrón cierre, 4 perfil+sabe porqué cierra, 5 ICP+real alineados. CLIENTE ACTUAL: 1 sin clientes, 2 distintos sin patrón, 3 tiene sin común, 4 sabe perfil, 5 ICP=real. PARA CADA VARIABLE: score, estado, diagnostico (1 frase), impacto (1 frase), recomendacion (1 acción específica). Devuelve SOLO JSON: {scores:{problema:{score,estado,diagnostico,impacto,recomendacion}, solucion:{...}, icp:{...}, cliente_actual:{...}}}\",\n  '2B': \"Eres el AGENTE 2B - SCORER DE MONETIZACIÓN de RiBuzz AI. Evalúas 4 variables: oferta, ecuacion_valor, ticket_medio, recurrencia. ESCALA 1-5. REGLA: is_unknown -> max 2. RÚBRICA: OFERTA: 1 sin oferta, 2 precio sin alcance, 3 precio+alcance sin resultado, 4 todo definido, 5 productizada+pública. ECUACIÓN VALOR: 1 no articula, 2 resultado vago, 3 resultado sin CTA, 4 resultado+CTA, 5 medible+automatizado+prueba. TICKET MEDIO: 1 muy bajo, 2 cubre sin margen, 3 margen mínimo, 4 margen para invertir, 5 alto+upsell+LTV. RECURRENCIA: 1 100% única, 2 algunos vuelven sin sistema, 3 espontáneo, 4 proceso activo, 5 sistema documentado. USA las métricas calculadas: ticket_medio, ratio_cac_ticket, ratio_cac_ltv para anclar el score de ticket_medio. PARA CADA: score, estado, diagnostico, impacto, recomendacion. Devuelve SOLO JSON: {scores:{oferta:{...}, ecuacion_valor:{...}, ticket_medio:{...}, recurrencia:{...}}}\",\n  '2C': \"Eres el AGENTE 2C - SCORER DE ADQUISICIÓN de RiBuzz AI. Evalúas 3 variables: canal_adquisicion, cac, conversion. ESCALA 1-5. REGLA: is_unknown -> max 2. RÚBRICA: CANAL: 1 sin canal, 2 impredecible/referidos, 3 canal identificado no escalable, 4 predecible+sabe invertir, 5 multi-canal medido. CAC: 1 no sabe, 2 CAC>50% del ticket, 3 CAC 20-50%, 4 CAC<20%, 5 optimizado+decreciente. CONVERSIÓN: 1 no sabe tasa, 2 <10% sin saber porqué, 3 10-25% con cuellos, 4 >25% con proceso, 5 >40% documentado. USA las métricas: ratio_cac_ticket, ratio_cac_ltv, leads_perdidos. PARA CADA: score, estado, diagnostico, impacto, recomendacion. Devuelve SOLO JSON: {scores:{canal_adquisicion:{...}, cac:{...}, conversion:{...}}}\",\n  '2D': \"Eres el AGENTE 2D - SCORER DE OPERACIONES de RiBuzz AI. Evalúas 3 variables: seguimiento, escalamiento, capacidad_ejecucion. ESCALA 1-5. REGLA: is_unknown -> max 2. RÚBRICA: SEGUIMIENTO: 1 sin seguimiento, 2 espontáneo, 3 proceso no documentado, 4 documentado, 5 CRM+secuencia. ESCALAMIENTO: 1 100% fundador, 2 mayoría fundador, 3 algunos documentados, 4 mitad documentado, 5 80%+ documentado. CAP. EJECUCIÓN: 1 nada, 2 mínimo <2h/sem, 3 básico parcial, 4 adecuado, 5 stack completo+equipo. PARA CADA: score, estado, diagnostico, impacto, recomendacion. Devuelve SOLO JSON: {scores:{seguimiento:{...}, escalamiento:{...}, capacidad_ejecucion:{...}}}\"\n};\n\nreturn [\n  { json: { scorer_id: '2A', system_prompt: PROMPTS['2A'], p1: ctx.p1, metrics: ctx.metrics, company: ctx.company } },\n  { json: { scorer_id: '2B', system_prompt: PROMPTS['2B'], p1: ctx.p1, metrics: ctx.metrics, company: ctx.company } },\n  { json: { scorer_id: '2C', system_prompt: PROMPTS['2C'], p1: ctx.p1, metrics: ctx.metrics, company: ctx.company } },\n  { json: { scorer_id: '2D', system_prompt: PROMPTS['2D'], p1: ctx.p1, metrics: ctx.metrics, company: ctx.company } }\n];"
+      }
+    },
+    {
+      "id": "5707673d-d024-4bc3-8d65-469c48cc576d",
+      "name": "Execute Scorers",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        2240,
+        460
+      ],
+      "parameters": {
+        "source": "parameter",
+        "workflowId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "RiBuzz Scorer Sub-Workflow"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook (entry)": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Job → running",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Job → running": {
+      "main": [
+        [
+          {
+            "node": "Fetch Diagnostic + Company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Diagnostic + Company": {
+      "main": [
+        [
+          {
+            "node": "Fetch 40 Answers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch 40 Answers": {
+      "main": [
+        [
+          {
+            "node": "Code: Calculate Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Calculate Metrics": {
+      "main": [
+        [
+          {
+            "node": "Agente 1: Sintetizador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente 1: Sintetizador": {
+      "main": [
+        [
+          {
+            "node": "Parse P1 + Prep Scorers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse P1 + Prep Scorers": {
+      "main": [
+        [
+          {
+            "node": "Job → scoring",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Job → scoring": {
+      "main": [
+        [
+          {
+            "node": "Prep 4 Scorer Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine 14 Scores": {
+      "main": [
+        [
+          {
+            "node": "Agente 3: Top Fugas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente 3: Top Fugas": {
+      "main": [
+        [
+          {
+            "node": "Parse Fugas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Fugas": {
+      "main": [
+        [
+          {
+            "node": "Job → reporting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Job → reporting": {
+      "main": [
+        [
+          {
+            "node": "Agente 4: Reporter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente 4: Reporter": {
+      "main": [
+        [
+          {
+            "node": "Agente 5: Playbook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente 5: Playbook": {
+      "main": [
+        [
+          {
+            "node": "Agente 6: Lead Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente 6: Lead Classifier": {
+      "main": [
+        [
+          {
+            "node": "Agente 7: Quality Reviewer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente 7: Quality Reviewer": {
+      "main": [
+        [
+          {
+            "node": "Prep Persistence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Persistence": {
+      "main": [
+        [
+          {
+            "node": "Save Scores",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save Report",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save Playbook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Scores": {
+      "main": [
+        [
+          {
+            "node": "Mark Diagnostic Completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Report": {
+      "main": [
+        [
+          {
+            "node": "Mark Diagnostic Completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Playbook": {
+      "main": [
+        [
+          {
+            "node": "Mark Diagnostic Completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Lead": {
+      "main": [
+        [
+          {
+            "node": "Mark Diagnostic Completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Diagnostic Completed": {
+      "main": [
+        [
+          {
+            "node": "Job → completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Job → completed": {
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude · Agente 5: Playbook": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente 5: Playbook",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude · Agente 4: Reporter": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente 4: Reporter",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude · Agente 7: Quality Reviewer": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente 7: Quality Reviewer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude · Agente 1: Sintetizador": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente 1: Sintetizador",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude · Agente 6: Lead Classifier": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente 6: Lead Classifier",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude · Agente 3: Top Fugas": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente 3: Top Fugas",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep 4 Scorer Items": {
+      "main": [
+        [
+          {
+            "node": "Execute Scorers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Scorers": {
+      "main": [
+        [
+          {
+            "node": "Combine 14 Scores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "errorWorkflow": ""
+  },
+  "tags": [
+    {
+      "name": "ribuzz"
+    },
+    {
+      "name": "production"
+    }
+  ]
+}

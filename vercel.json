@@ -1,6 +1,0 @@
-{
-  "buildCommand": "cd ribuzz-ai && npm run build",
-  "installCommand": "cd ribuzz-ai && npm install",
-  "outputDirectory": "ribuzz-ai/.next",
-  "framework": "nextjs"
-}
