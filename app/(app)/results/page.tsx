@@ -73,19 +73,7 @@ export default async function ResultsPage({
   return (
     <main className="ribuzz-shell mx-auto max-w-4xl px-6 py-10">
 
-      {/* ── Reconocimiento emocional (v2) ── */}
-      {report.reconocimiento && (
-        <section className="mb-8 rounded-3xl border border-ribuzz-accent/25 bg-gradient-to-br from-ribuzz-accent/[0.07] to-ribuzz-violet/[0.07] p-6">
-          <p className="text-xs uppercase tracking-widest text-ribuzz-accent">
-            Para {company?.name ?? "ti"}
-          </p>
-          <p className="mt-3 whitespace-pre-line text-base leading-relaxed text-ribuzz-primary">
-            {report.reconocimiento}
-          </p>
-        </section>
-      )}
-
-      {/* ── Header ── */}
+    {/* ── Header ── */}
       <header className="mb-8">
         <p className="text-xs uppercase tracking-widest text-ribuzz-accent">Diagnóstico RiBuzz</p>
         <h1 className="mt-1 text-3xl font-bold">{company?.name ?? "Tu empresa"}</h1>
@@ -106,6 +94,17 @@ export default async function ResultsPage({
           <Stat label="Salud comercial" value={metrics.salud_comercial ? `${metrics.salud_comercial}/100` : "—"} />
         </div>
       </section>
+
+      {report.reconocimiento && (
+        <section className="mb-8 rounded-3xl border border-ribuzz-accent/25 bg-gradient-to-br from-ribuzz-accent/[0.07] to-ribuzz-violet/[0.07] p-6">
+          <p className="text-xs uppercase tracking-widest text-ribuzz-accent">
+            Para {company?.name ?? "ti"}
+          </p>
+          <p className="mt-3 whitespace-pre-line text-base leading-relaxed text-ribuzz-primary">
+            {report.reconocimiento}
+          </p>
+        </section>
+      )}
 
       {/* ── Top 3 fugas ── */}
       <section className="mb-10">
