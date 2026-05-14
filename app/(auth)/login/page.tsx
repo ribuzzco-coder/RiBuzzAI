@@ -83,7 +83,7 @@ function LoginForm() {
 
       <p className="mt-6 text-sm text-ribuzz-muted">
         ¿No tienes cuenta?{" "}
-        <Link href="/register" className="font-bold text-ribuzz-pink hover:text-ribuzz-cyan">
+        <Link href="/register" className="font-bold text-ribuzz-champagne hover:text-ribuzz-platinum">
           Regístrate
         </Link>
       </p>
@@ -95,7 +95,7 @@ function LoginShell({ children }: { children?: React.ReactNode }) {
   return (
     <main className="ribuzz-shell mx-auto grid min-h-screen max-w-md place-items-center px-6 py-12">
       <section className="glow-card animate-rise w-full rounded-[2rem] p-7">
-        <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-ribuzz-cyan">
+        <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-ribuzz-champagne">
           RiBuzz AI
         </p>
         <h1 className="mt-3 font-display text-3xl font-bold text-ribuzz-primary">

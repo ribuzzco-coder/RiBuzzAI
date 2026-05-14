@@ -20,7 +20,10 @@ const config: Config = {
           card: "#181A24",
           card2: "#1D2130",
           muted: "#C7CBD6",
-          soft: "#98A0B3"
+          soft: "#98A0B3",
+          platinum: "#E8E2D4",
+          champagne: "#C9B37E",
+          gold: "#A68A4A"
         },
         score: {
           critico: "#DC2626",     // rojo

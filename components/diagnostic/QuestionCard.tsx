@@ -28,11 +28,11 @@ export function QuestionCard({ pregunta, onSubmit, defaultValue = "" }: Props) {
   return (
     <div className="glow-card animate-rise rounded-[2rem] p-6 shadow-2xl sm:p-8">
       {pregunta.isFused && (
-        <p className="mb-3 text-xs font-extrabold uppercase tracking-[0.2em] text-ribuzz-pink">
+        <p className="mb-3 text-xs font-extrabold uppercase tracking-[0.2em] text-ribuzz-champagne">
           Dos preguntas en una
         </p>
       )}
-      <p className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-ribuzz-cyan">
+      <p className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-ribuzz-champagne">
         Diagnóstico comercial
       </p>
       <h2 className="font-display text-2xl font-semibold leading-tight text-ribuzz-primary sm:text-3xl">

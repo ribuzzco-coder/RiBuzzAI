@@ -134,7 +134,7 @@ export function DiagnosticClient() {
 function DiagnosticHeader() {
   return (
     <div className="mb-8 flex items-center justify-between gap-4">
-      <Link href="/profile" className="text-sm font-semibold text-ribuzz-accent hover:text-ribuzz-cyan">
+      <Link href="/profile" className="text-sm font-semibold text-ribuzz-champagne hover:text-ribuzz-platinum">
         Mis diagnósticos
       </Link>
       <Link href="/diagnostic?new=1" className="text-sm text-ribuzz-muted hover:text-ribuzz-primary">

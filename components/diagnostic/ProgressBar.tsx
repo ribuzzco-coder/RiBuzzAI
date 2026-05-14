@@ -16,13 +16,13 @@ export function ProgressBar({ current, total, seccion }: Props) {
         <span>
           Sección {seccion} · {SECCION_LABELS[seccion]}
         </span>
-        <span className="text-ribuzz-cyan">
+        <span className="text-ribuzz-champagne">
           {current} de {total} · {pct}%
         </span>
       </div>
       <div className="h-2.5 w-full overflow-hidden rounded-full border border-white/10 bg-black/35">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-[#3B214E] to-ribuzz-accent shadow-[0_0_12px_rgba(230,37,255,0.18)] transition-all duration-700 ease-out"
+          className="h-full rounded-full bg-gradient-to-r from-[#2B2234] to-ribuzz-champagne shadow-[0_0_12px_rgba(201,179,126,0.14)] transition-all duration-700 ease-out"
           style={{ width: `${pct}%` }}
         />
       </div>

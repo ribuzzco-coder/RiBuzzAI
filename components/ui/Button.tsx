@@ -14,9 +14,9 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<Variant, string> = {
   primary:
-    "border border-ribuzz-accent/35 bg-gradient-to-br from-[#211326] to-[#4F1263] text-white shadow-[0_0_18px_rgba(230,37,255,0.16)] hover:border-ribuzz-accent/55 hover:shadow-[0_0_28px_rgba(230,37,255,0.26)] disabled:opacity-50",
+    "border border-ribuzz-champagne/35 bg-gradient-to-br from-[#181820] to-[#2B2234] text-ribuzz-platinum shadow-[0_0_18px_rgba(201,179,126,0.12)] hover:border-ribuzz-champagne/55 hover:shadow-[0_0_28px_rgba(201,179,126,0.18)] disabled:opacity-50",
   secondary:
-    "border border-white/12 bg-white/[0.055] text-ribuzz-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] hover:border-ribuzz-cyan/25 hover:bg-white/[0.08]",
+    "border border-white/12 bg-white/[0.055] text-ribuzz-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] hover:border-ribuzz-champagne/30 hover:bg-white/[0.08]",
   ghost: "text-ribuzz-muted hover:bg-white/[0.055] hover:text-ribuzz-primary",
   danger: "border border-red-400/25 bg-red-950/70 text-white shadow-[0_0_18px_rgba(220,38,38,0.16)] hover:bg-red-900"
 };

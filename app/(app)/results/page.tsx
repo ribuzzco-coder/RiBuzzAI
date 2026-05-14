@@ -54,7 +54,7 @@ export default async function ResultsPage({
         <p className="mt-2 text-ribuzz-muted">
           Si acabas de terminar las preguntas, el procesamiento puede tomar hasta un minuto.
         </p>
-        <Link href="/profile" className="mt-4 inline-block text-ribuzz-accent">
+        <Link href="/profile" className="mt-4 inline-block text-ribuzz-champagne">
           Volver al perfil
         </Link>
       </main>
@@ -112,7 +112,7 @@ export default async function ResultsPage({
 
     {/* ── Header ── */}
       <header className="mb-8">
-        <p className="text-xs uppercase tracking-widest text-ribuzz-accent">Diagnóstico RiBuzz</p>
+        <p className="text-xs uppercase tracking-widest text-ribuzz-champagne">Diagnóstico RiBuzz</p>
         <h1 className="mt-1 text-3xl font-bold">{company?.name ?? "Tu empresa"}</h1>
         <p className="mt-2 text-ribuzz-muted">{report.lectura_principal}</p>
       </header>
@@ -133,8 +133,8 @@ export default async function ResultsPage({
       </section>
 
       {report.reconocimiento && (
-        <section className="mb-8 rounded-3xl border border-ribuzz-accent/25 bg-gradient-to-br from-ribuzz-accent/[0.07] to-ribuzz-violet/[0.07] p-6">
-          <p className="text-xs uppercase tracking-widest text-ribuzz-accent">
+        <section className="mb-8 rounded-3xl border border-ribuzz-champagne/25 bg-white/[0.035] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
+          <p className="text-xs uppercase tracking-widest text-ribuzz-champagne">
             Para {company?.name ?? "ti"}
           </p>
           <p className="mt-3 whitespace-pre-line text-base leading-relaxed text-ribuzz-primary">
@@ -168,8 +168,8 @@ export default async function ResultsPage({
         )}
 
         {/* Siguiente paso */}
-        <div className="mt-5 rounded-2xl border border-ribuzz-accent/25 bg-ribuzz-accent/[0.08] p-4 text-sm">
-          <p className="font-semibold text-ribuzz-cyan">Siguiente paso (7 días):</p>
+        <div className="mt-5 rounded-2xl border border-ribuzz-champagne/25 bg-ribuzz-champagne/[0.055] p-4 text-sm">
+          <p className="font-semibold text-ribuzz-champagne">Siguiente paso (7 días):</p>
           <p className="mt-1 text-ribuzz-muted">{report.siguiente_paso}</p>
         </div>
       </section>
@@ -215,8 +215,8 @@ export default async function ResultsPage({
 
       {/* ── Conexión con el sueño (v2) ── */}
       {report.conexion_sueno && (
-        <section className="mb-10 rounded-3xl border border-ribuzz-violet/30 bg-gradient-to-br from-ribuzz-violet/[0.08] to-ribuzz-accent/[0.06] p-6">
-          <p className="text-xs uppercase tracking-widest text-ribuzz-violet">
+        <section className="mb-10 rounded-3xl border border-ribuzz-champagne/25 bg-white/[0.035] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
+          <p className="text-xs uppercase tracking-widest text-ribuzz-champagne">
             Tu visión
           </p>
           <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-ribuzz-primary">
@@ -237,7 +237,7 @@ export default async function ResultsPage({
           )}`}
           target="_blank"
           rel="noreferrer"
-          className="mt-4 inline-flex h-11 items-center rounded-full bg-gradient-to-br from-ribuzz-accent to-ribuzz-violet px-5 font-bold text-white shadow-[0_0_30px_rgba(230,37,255,0.36)]"
+          className="mt-4 inline-flex h-11 items-center rounded-full border border-ribuzz-champagne/35 bg-gradient-to-br from-[#181820] to-[#2B2234] px-5 font-bold text-ribuzz-platinum shadow-[0_0_24px_rgba(201,179,126,0.16)] transition hover:border-ribuzz-champagne/55"
         >
           Hablar con RiBuzz
         </a>

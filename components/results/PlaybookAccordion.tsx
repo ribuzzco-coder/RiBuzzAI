@@ -18,7 +18,7 @@ export function PlaybookAccordion({ acciones }: { acciones: PlaybookAccion[] }) 
               className="flex w-full items-center justify-between gap-3 p-4 text-left"
             >
               <div className="flex items-center gap-3">
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#211326] to-[#4F1263] text-xs font-bold text-white shadow-[0_0_14px_rgba(230,37,255,0.18)]">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full border border-ribuzz-champagne/30 bg-white/[0.06] text-xs font-bold text-ribuzz-champagne shadow-[0_0_14px_rgba(201,179,126,0.12)]">
                   {a.prioridad}
                 </span>
                 <h3 className="font-display font-semibold text-ribuzz-primary">{a.titulo}</h3>
@@ -52,7 +52,7 @@ export function PlaybookAccordion({ acciones }: { acciones: PlaybookAccion[] }) 
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-ribuzz-cyan">
+      <p className="text-xs font-semibold uppercase tracking-wide text-ribuzz-champagne">
         {label}
       </p>
       <p className="mt-1 text-sm text-ribuzz-muted">{value}</p>

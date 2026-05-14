@@ -83,7 +83,7 @@ export function ScoreCard({ variable, score, detail, metricValue }: Props) {
         )}
 
         {metricValue && (
-          <p className="mt-2 text-xs font-semibold text-ribuzz-cyan">
+          <p className="mt-2 text-xs font-semibold text-ribuzz-champagne">
             Valor reportado: {metricValue}
           </p>
         )}
@@ -96,7 +96,7 @@ export function ScoreCard({ variable, score, detail, metricValue }: Props) {
         )}
 
         {hasDetail && (
-          <p className="mt-2 text-xs text-ribuzz-accent">
+          <p className="mt-2 text-xs text-ribuzz-champagne">
             {open ? "Cerrar detalle ▲" : "Ver detalle completo ▼"}
           </p>
         )}
@@ -109,7 +109,7 @@ export function ScoreCard({ variable, score, detail, metricValue }: Props) {
             <DetailRow
               label="Evidencia"
               value={detail.evidencia}
-              accent="text-ribuzz-cyan"
+              accent="text-ribuzz-champagne"
             />
           )}
           <DetailRow label="Diagnóstico" value={detail.diagnostico} />
@@ -118,13 +118,13 @@ export function ScoreCard({ variable, score, detail, metricValue }: Props) {
             <DetailRow
               label="Brecha a cerrar"
               value={detail.brecha}
-              accent="text-yellow-400"
+              accent="text-ribuzz-champagne"
             />
           )}
           <DetailRow
             label="Recomendación"
             value={detail.recomendacion}
-            accent="text-ribuzz-accent"
+            accent="text-ribuzz-champagne"
           />
         </div>
       )}
@@ -135,7 +135,7 @@ export function ScoreCard({ variable, score, detail, metricValue }: Props) {
 function DetailRow({
   label,
   value,
-  accent = "text-ribuzz-cyan"
+  accent = "text-ribuzz-champagne"
 }: {
   label: string;
   value: string;
