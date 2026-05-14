@@ -4,23 +4,30 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const PHASE_LABELS: Record<string, string> = {
-  queued: "En cola...",
-  fetching_data: "Cargando respuestas del diagnóstico",
-  calculating_metrics: "Calculando métricas comerciales",
-  synthesizing: "Agente 1: Sintetizando respuestas",
-  scoring_parallel: "Agentes 2A-2D: Evaluando 14 variables (en paralelo)",
-  scoring_pmf: "Agente 2A: Evaluando product-market fit",
-  scoring_monetizacion: "Agente 2B: Evaluando monetización",
-  scoring_adquisicion: "Agente 2C: Evaluando adquisición",
-  scoring_operaciones: "Agente 2D: Evaluando operaciones",
-  selecting_top_fugas: "Agente 3: Seleccionando top 3 fugas",
-  writing_report: "Agente 4: Redactando tu reporte",
-  designing_playbook: "Agente 5: Diseñando tu playbook",
-  classifying_lead: "Agente 6: Clasificación interna",
-  quality_review: "Agente 7: Revisión de calidad",
-  persisting: "Guardando resultados",
-  done: "¡Listo!"
+  queued: "Preparando tu lectura...",
+  fetching_data: "Organizando tus respuestas",
+  calculating_metrics: "Poniendo tus números en orden",
+  synthesizing: "Encontrando los patrones importantes",
+  scoring_parallel: "Leyendo las señales comerciales",
+  scoring_pmf: "Midiendo el encaje con el mercado",
+  scoring_monetizacion: "Revisando cómo captura valor tu negocio",
+  scoring_adquisicion: "Observando tus canales de crecimiento",
+  scoring_operaciones: "Ordenando la operación y sus prioridades",
+  selecting_top_fugas: "Detectando las fugas más urgentes",
+  writing_report: "Armando una lectura clara para ti",
+  designing_playbook: "Preparando próximos pasos",
+  classifying_lead: "Cerrando recomendaciones",
+  quality_review: "Revisando que todo tenga sentido",
+  persisting: "Guardando tu diagnóstico",
+  done: "Listo"
 };
+
+const WAITING_NOTES = [
+  "Estamos convirtiendo tus respuestas en una lectura clara y accionable.",
+  "Ya casi: estamos separando ruido de señales importantes.",
+  "Buen momento para respirar. El informe está tomando forma.",
+  "Estamos afinando prioridades para que el resultado sea útil, no solo bonito."
+];
 
 function ProcessingInner() {
   const router = useRouter();
@@ -120,16 +127,20 @@ function ProcessingInner() {
   }
 
   const phaseLabel = (phase && PHASE_LABELS[phase]) ?? "Iniciando...";
+  const waitingNote = WAITING_NOTES[Math.floor(elapsed / 8) % WAITING_NOTES.length];
 
   return (
-    <main className="ribuzz-shell mx-auto max-w-md px-6 py-16 text-center">
-      <section className="glow-card animate-rise rounded-[2rem] p-8">
+    <main className="ribuzz-shell mx-auto flex min-h-screen max-w-md items-center px-6 py-16 text-center">
+      <section className="glow-card w-full rounded-[2rem] p-8">
       <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-ribuzz-accent border-t-transparent" />
       <h1 className="mt-6 text-xl font-semibold text-ribuzz-primary">
-        Analizando tu negocio…
+        Estamos ordenando tu diagnóstico
       </h1>
       <p className="mt-3 text-sm text-ribuzz-muted">
-        7 agentes especializados están procesando tu diagnóstico.
+        Danos un momento mientras transformamos tus respuestas en una lectura práctica para tu negocio.
+      </p>
+      <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3 text-sm text-ribuzz-primary">
+        {waitingNote}
       </p>
 
       {/* Barra de progreso */}
@@ -147,7 +158,7 @@ function ProcessingInner() {
 
       {elapsed > 90 && status === "running" && (
         <p className="mt-4 text-sm text-amber-600">
-          Tomando más de lo habitual. Sigue corriendo — espera unos segundos más.
+          Está tomando más de lo habitual, pero seguimos trabajando en tu informe. Espera unos segundos más.
         </p>
       )}
       </section>
