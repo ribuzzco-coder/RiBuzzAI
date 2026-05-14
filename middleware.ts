@@ -8,68 +8,66 @@ type CookieToSet = {
   options?: Partial<ResponseCookie>;
 };
 
-/**
- * Middleware de Supabase Auth.
- * - Refresca la sesión en cada request
- * - Protege rutas privadas: /diagnostic, /processing, /results, /profile, /admin
- * - Restringe /admin a los emails listados en ADMIN_EMAILS
- */
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request: { headers: request.headers } });
-
-  // Si las env vars de Supabase no están configuradas (ej. primer
-  // arranque local sin .env.local), no bloqueamos nada para que al
-  // menos la landing renderice. El dev verá un placeholder hasta
-  // que cargue sus claves reales.
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  ) {
-    return response;
-  }
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet: CookieToSet[]) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          response = NextResponse.next({ request: { headers: request.headers } });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
-        }
-      }
-    }
-  );
-
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
   const { pathname } = request.nextUrl;
-  const PROTECTED = ["/diagnostic", "/processing", "/results", "/profile", "/admin"];
-  const isProtected = PROTECTED.some((p) => pathname.startsWith(p));
+  const protectedRoutes = ["/diagnostic", "/processing", "/results", "/profile", "/admin"];
+  const isProtected = protectedRoutes.some((route) => pathname.startsWith(route));
 
-  if (isProtected && !user) {
+  const redirectToLogin = () => {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("redirect", pathname);
     return NextResponse.redirect(url);
+  };
+
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  ) {
+    return isProtected ? redirectToLogin() : response;
   }
 
-  // Guard de admin por allowlist de emails
+  let user = null;
+
+  try {
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet: CookieToSet[]) {
+            cookiesToSet.forEach(({ name, value }) =>
+              request.cookies.set(name, value)
+            );
+            response = NextResponse.next({ request: { headers: request.headers } });
+            cookiesToSet.forEach(({ name, value, options }) =>
+              response.cookies.set(name, value, options)
+            );
+          }
+        }
+      }
+    );
+
+    const result = await supabase.auth.getUser();
+    user = result.data.user;
+  } catch {
+    return isProtected ? redirectToLogin() : response;
+  }
+
+  if (isProtected && !user) {
+    return redirectToLogin();
+  }
+
   if (pathname.startsWith("/admin") && user) {
     const allowed = (process.env.ADMIN_EMAILS ?? "")
       .split(",")
-      .map((e) => e.trim().toLowerCase())
+      .map((email) => email.trim().toLowerCase())
       .filter(Boolean);
+
     if (!allowed.includes((user.email ?? "").toLowerCase())) {
       const url = request.nextUrl.clone();
       url.pathname = "/profile";
