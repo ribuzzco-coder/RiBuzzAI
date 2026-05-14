@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, hasSupabaseBrowserEnv } from "@/lib/supabase/client";
 import { Input, Select } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 
@@ -46,6 +46,13 @@ export default function RegisterPage() {
     }
     setLoading(true);
     setError(null);
+
+    if (!hasSupabaseBrowserEnv()) {
+      setLoading(false);
+      setError("Falta configurar Supabase en Vercel: NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+      return;
+    }
+
     const supabase = createClient();
 
     const { data, error: signUpErr } = await supabase.auth.signUp({

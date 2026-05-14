@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, hasSupabaseBrowserEnv } from "@/lib/supabase/client";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 
@@ -29,13 +29,27 @@ function LoginForm() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) {
-      setError(error.message);
+
+    if (!hasSupabaseBrowserEnv()) {
+      setLoading(false);
+      setError("Falta configurar Supabase en Vercel: NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY.");
       return;
     }
+
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+    } catch {
+      setError("No pudimos conectar con Supabase. Revisa las variables de entorno y la URL del proyecto.");
+      return;
+    } finally {
+      setLoading(false);
+    }
+
     router.push(redirect);
     router.refresh();
   }
