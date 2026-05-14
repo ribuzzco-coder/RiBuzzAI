@@ -111,7 +111,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const answers = $input.all().map(i => i.json);\nconst flat = {};\nfor (const a of answers) {\n  const vars = (a.variable_bd || '').split(',').map(v => v.trim());\n  for (const v of vars) flat[v] = a.is_unknown ? '' : (a.answer_text || '');\n}\nfunction parseToken(token) {\n  const suffix = token.match(/(mm|m|k)$/)?.[1];\n  let body = token.replace(/(mm|m|k)$/, '');\n  if (body.includes('.') && body.includes(',')) body = body.replace(/\\./g, '').replace(',', '.');\n  else if (body.includes(',')) body = body.replace(',', '.');\n  else if (/^\\d{1,3}(?:\\.\\d{3})+$/.test(body)) body = body.replace(/\\./g, '');\n  let parsed = Number.parseFloat(body);\n  if (!Number.isFinite(parsed)) return 0;\n  if (suffix === 'mm' || suffix === 'm') parsed *= 1e6;\n  if (suffix === 'k') parsed *= 1e3;\n  return parsed;\n}\nfunction num(value, fallback = 0) {\n  if (value === undefined || value === null || value === '') return fallback;\n  if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;\n  const normalized = value.toString().trim().toLowerCase();\n  const ranges = {\n    menos_10: 5,\n    '10_30': 20,\n    '31_100': 65,\n    mas_100: 120,\n    '0': 0,\n    '1_5': 3,\n    '6_15': 10.5,\n    '16_30': 23,\n    mas_30: 40,\n    no_se: fallback\n  };\n  if (Object.prototype.hasOwnProperty.call(ranges, normalized)) return ranges[normalized];\n  const clean = normalized.replace(/cop|pesos|peso|aprox\\.?|aproximadamente|~|\\$/g, '').replace(/\\s+/g, '');\n  const matches = clean.match(/\\d+(?:[.,]\\d+)*(?:mm|m|k)?/g);\n  if (!matches) return fallback;\n  const nums = matches.map(parseToken).filter(n => Number.isFinite(n));\n  if (!nums.length) return fallback;\n  return nums.length >= 2 ? (nums[0] + nums[1]) / 2 : nums[0];\n}\nfunction clampPct(value) {\n  if (!Number.isFinite(value)) return 0;\n  return Math.max(0, Math.min(value, 100));\n}\nfunction safeRound(value) {\n  return Number.isFinite(value) ? Math.round(value) : 0;\n}\nconst ventas = num(flat.comercial_ventas_mes);\nconst clientes = Math.max(num(flat.comercial_clientes_actuales, 1), 1);\nconst nuevos = num(flat.comercial_clientes_nuevos || flat.ventas_30d);\nconst inversion = num(flat.comercial_inversion_mes);\nconst leads = Math.max(num(flat.comercial_leads_mes || flat.interesados_30d, 1), 1);\nconst conv = clampPct(num(flat.comercial_tasa_conversion, leads > 0 ? (nuevos / leads) * 100 : 0));\nconst ticketDeclarado = num(flat.ticket_promedio);\nconst ticket_medio = ticketDeclarado > 0 ? ticketDeclarado : ventas / clientes;\nconst cac = nuevos > 0 ? inversion / nuevos : inversion;\nconst ltv = ticket_medio * 12;\nconst ratio_cac_ticket = ticket_medio > 0 ? (cac / ticket_medio) * 100 : 100;\nconst ratio_cac_ltv = ltv > 0 ? (cac / ltv) * 100 : 100;\nconst leads_perdidos = safeRound(leads * (1 - conv / 100));\nconst conversion_actual = conv / 100;\nconst conversion_objetivo = Math.min(conversion_actual + 0.1, 1);\nconst clientes_adicionales = safeRound(leads * (conversion_objetivo - conversion_actual));\nconst ingreso_potencial = clientes_adicionales * ticket_medio;\nconst s_ticket = Math.min(ticket_medio / 1e6, 1) * 100;\nconst s_cac = Math.max(0, 100 - ratio_cac_ticket);\nconst s_conv = Math.min(conv * 2, 100);\nconst s_ltv_cac = Math.max(0, 100 - ratio_cac_ltv);\nconst salud_comercial = s_ticket * 0.25 + s_cac * 0.3 + s_conv * 0.25 + s_ltv_cac * 0.2;\nconst metrics = {\n  ticket_medio: safeRound(ticket_medio),\n  cac: safeRound(cac),\n  ltv: safeRound(ltv),\n  ratio_cac_ticket: Math.round(ratio_cac_ticket * 10) / 10,\n  ratio_cac_ltv: Math.round(ratio_cac_ltv * 10) / 10,\n  leads_perdidos,\n  ingreso_potencial: safeRound(ingreso_potencial),\n  salud_comercial: safeRound(salud_comercial),\n  raw_numeric_inputs: {\n    ventas,\n    clientes,\n    nuevos,\n    inversion,\n    leads,\n    conversion_pct: conv,\n    ticket_declarado: ticketDeclarado\n  }\n};\nconst company = $('Fetch Diagnostic + Company').first().json;\nreturn [{ json: { answers, flat, metrics, company } }];"
+        "jsCode": "const answers = $json.answers;\nconst mx = $json.metricas_extraidas || {};\nconst flat = {};\nfor (const a of answers) {\n  const vars = (a.variable_bd || '').split(',').map(v => v.trim());\n  for (const v of vars) flat[v] = a.is_unknown ? '' : (a.answer_text || '');\n}\nfunction parseToken(token) {\n  const suffix = token.match(/(mm|m|k)$/)?.[1];\n  let body = token.replace(/(mm|m|k)$/, '');\n  if (body.includes('.') && body.includes(',')) body = body.replace(/\\./g, '').replace(',', '.');\n  else if (body.includes(',') && /\\d{3}$/.test(body.split(',')[1])) body = body.replace(',', '');\n  else if (body.includes(',')) body = body.replace(',', '.');\n  else if (/^\\d{1,3}(?:\\.\\d{3})+$/.test(body)) body = body.replace(/\\./g, '');\n  let parsed = Number.parseFloat(body);\n  if (!Number.isFinite(parsed)) return 0;\n  if (suffix === 'mm' || suffix === 'm') parsed *= 1e6;\n  if (suffix === 'k') parsed *= 1e3;\n  return parsed;\n}\nfunction num(value, fallback = 0) {\n  if (value === undefined || value === null || value === '') return fallback;\n  if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;\n  const normalized = value.toString().trim().toLowerCase();\n  const ranges = { menos_10:5,'10_30':20,'31_100':65,mas_100:120,'0':0,'1_5':3,'6_15':10.5,'16_30':23,mas_30:40,no_se:fallback };\n  if (Object.prototype.hasOwnProperty.call(ranges, normalized)) return ranges[normalized];\n  const clean = normalized.replace(/cop|pesos|peso|aprox\\.?|aproximadamente|~|\\$/g, '').replace(/\\s+/g, '');\n  const matches = clean.match(/\\d+(?:[.,]\\d+)*(?:mm|m|k)?/g);\n  if (!matches) return fallback;\n  const nums = matches.map(parseToken).filter(n => Number.isFinite(n));\n  if (!nums.length) return fallback;\n  return nums.length >= 2 ? (nums[0] + nums[1]) / 2 : nums[0];\n}\nfunction clampPct(v) { return Number.isFinite(v) ? Math.max(0, Math.min(v, 100)) : 0; }\nfunction safeRound(v) { return Number.isFinite(v) ? Math.round(v) : 0; }\nfunction pick(extracted, fallback) { return (extracted !== null && extracted !== undefined) ? extracted : fallback; }\n\n// --- Valores númericos: extractor primero, fallback al flat ---\nconst ventas   = pick(mx.ventas_mes,            num(flat.comercial_ventas_mes));\nconst clientes = Math.max(pick(mx.clientes_actuales, num(flat.comercial_clientes_actuales, 1)), 1);\nconst nuevos   = pick(mx.clientes_nuevos_mes,   num(flat.comercial_clientes_nuevos || flat.ventas_30d));\nconst inversion= pick(mx.inversion_publicidad_mes, num(flat.comercial_inversion_mes));\nconst leads    = Math.max(pick(mx.leads_mes,    num(flat.comercial_leads_mes || flat.interesados_30d, 1)), 1);\nconst conv     = clampPct(pick(mx.tasa_conversion_pct, num(flat.comercial_tasa_conversion, leads > 0 ? (nuevos/leads)*100 : 0)));\nconst ticketDeclarado = pick(mx.ticket_promedio_cop, num(flat.ticket_promedio));\nconst ticket_medio = ticketDeclarado > 0 ? ticketDeclarado : (ventas > 0 ? ventas / clientes : 0);\nconst cac      = nuevos > 0 ? inversion / nuevos : inversion;\nconst ltv      = ticket_medio * 12;\nconst ratio_cac_ticket = ticket_medio > 0 ? (cac / ticket_medio) * 100 : 100;\nconst ratio_cac_ltv    = ltv > 0 ? (cac / ltv) * 100 : 100;\nconst leads_perdidos   = safeRound(leads * (1 - conv / 100));\nconst conversion_actual  = conv / 100;\nconst conversion_objetivo = Math.min(conversion_actual + 0.1, 1);\nconst clientes_adicionales = safeRound(leads * (conversion_objetivo - conversion_actual));\nconst ingreso_potencial    = clientes_adicionales * ticket_medio;\nconst s_ticket = Math.min(ticket_medio / 1e6, 1) * 100;\nconst s_cac    = Math.max(0, 100 - ratio_cac_ticket);\nconst s_conv   = Math.min(conv * 2, 100);\nconst s_ltv_cac= Math.max(0, 100 - ratio_cac_ltv);\nconst salud_comercial = s_ticket*0.25 + s_cac*0.3 + s_conv*0.25 + s_ltv_cac*0.2;\nconst metrics = {\n  ticket_medio: safeRound(ticket_medio), cac: safeRound(cac), ltv: safeRound(ltv),\n  ratio_cac_ticket: Math.round(ratio_cac_ticket*10)/10,\n  ratio_cac_ltv: Math.round(ratio_cac_ltv*10)/10,\n  leads_perdidos, ingreso_potencial: safeRound(ingreso_potencial),\n  salud_comercial: safeRound(salud_comercial),\n  raw_numeric_inputs: { ventas, clientes, nuevos, inversion, leads, conversion_pct: conv, ticket_declarado: ticketDeclarado }\n};\nconst company = $('Fetch Diagnostic + Company').first().json;\nreturn [{ json: { answers, flat, metrics, company } }];"
       },
       "id": "6d149544-ef34-44e9-98e5-54b5bedb59a5",
       "name": "Code: Calculate Metrics",
@@ -148,13 +148,13 @@
       "parameters": {
         "model": {
           "__rl": true,
-          "value": "gpt-4o",
+          "value": "gpt-4o-mini",
           "mode": "list",
-          "cachedResultName": "gpt-4o"
+          "cachedResultName": "gpt-4o-mini"
         },
         "builtInTools": {},
         "options": {
-          "maxTokens": 1500,
+          "maxTokens": 800,
           "temperature": 0
         }
       },
@@ -171,7 +171,10 @@
           "id": "AO805CTOSUGBSXdD",
           "name": "RibuZZ Final Automatización"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -218,7 +221,7 @@
         },
         "builtInTools": {},
         "options": {
-          "maxTokens": 4096,
+          "maxTokens": 2200,
           "temperature": 0
         }
       },
@@ -235,7 +238,10 @@
           "id": "AO805CTOSUGBSXdD",
           "name": "RibuZZ Final Automatización"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -318,7 +324,7 @@
         },
         "builtInTools": {},
         "options": {
-          "maxTokens": 4096,
+          "maxTokens": 2200,
           "temperature": 0
         }
       },
@@ -335,7 +341,10 @@
           "id": "AO805CTOSUGBSXdD",
           "name": "RibuZZ Final Automatización"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -395,7 +404,7 @@
         },
         "builtInTools": {},
         "options": {
-          "maxTokens": 2000,
+          "maxTokens": 1200,
           "temperature": 0
         }
       },
@@ -412,7 +421,10 @@
           "id": "AO805CTOSUGBSXdD",
           "name": "RibuZZ Final Automatización"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -495,7 +507,7 @@
         },
         "builtInTools": {},
         "options": {
-          "maxTokens": 3500,
+          "maxTokens": 2400,
           "temperature": 0.4
         }
       },
@@ -512,7 +524,10 @@
           "id": "AO805CTOSUGBSXdD",
           "name": "RibuZZ Final Automatización"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -546,7 +561,7 @@
         },
         "builtInTools": {},
         "options": {
-          "maxTokens": 3500,
+          "maxTokens": 2400,
           "temperature": 0.2
         }
       },
@@ -563,7 +578,10 @@
           "id": "AO805CTOSUGBSXdD",
           "name": "RibuZZ Final Automatización"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -591,13 +609,13 @@
       "parameters": {
         "model": {
           "__rl": true,
-          "value": "gpt-4o",
+          "value": "gpt-4o-mini",
           "mode": "list",
-          "cachedResultName": "gpt-4o"
+          "cachedResultName": "gpt-4o-mini"
         },
         "builtInTools": {},
         "options": {
-          "maxTokens": 2000,
+          "maxTokens": 900,
           "temperature": 0
         }
       },
@@ -614,7 +632,10 @@
           "id": "AO805CTOSUGBSXdD",
           "name": "RibuZZ Final Automatización"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -655,13 +676,13 @@
       "parameters": {
         "model": {
           "__rl": true,
-          "value": "gpt-4o",
+          "value": "gpt-4o-mini",
           "mode": "list",
-          "cachedResultName": "gpt-4o"
+          "cachedResultName": "gpt-4o-mini"
         },
         "builtInTools": {},
         "options": {
-          "maxTokens": 1500,
+          "maxTokens": 900,
           "temperature": 0
         }
       },
@@ -678,7 +699,10 @@
           "id": "AO805CTOSUGBSXdD",
           "name": "RibuZZ Final Automatización"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -897,6 +921,73 @@
         -9728,
         1088
       ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify({ respuestas: $input.all().map(i => i.json) }) }}",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "HumanMessagePromptTemplate",
+              "message": "Eres el AGENTE EXTRACTOR DE MÉTRICAS de RiBuzz AI.\n\nTu única función es leer TODAS las respuestas del formulario de diagnóstico y extraer o inferir los valores numéricos necesarios para calcular métricas comerciales. NO diagnosticas ni recomiendas.\n\nRECIBIRÁS: Un array JSON con las respuestas del formulario. Cada objeto tiene: variable_bd, question_text, answer_text, is_unknown.\n\nVALORES A EXTRAER — busca en TODOS los campos de texto libre, no solo en el campo obvio:\n\n1. ventas_mes (COP): Ingresos/ventas totales del último mes. Busca en: meta_3m (\"quiero llegar a X\"), venta_ganada (ticket × clientes), negocio_descripcion, cualquier mención de \"facturamos\", \"vendemos\", \"ingresos\". Si no hay dato explícito, calcula ticket_promedio × clientes_actuales si ambos están disponibles. Si no es posible: null.\n\n2. clientes_actuales (número): Total de clientes activos hoy. Busca frases como \"tengo X clientes\", \"atiendo X empresas\", \"X clientes activos\". Si no hay dato: null.\n\n3. clientes_nuevos_mes (número): Nuevos clientes en los últimos 30 días. Usa la respuesta de ventas_30d directamente. Mapea: \"0\"→0, \"1_5\"→3, \"6_15\"→10, \"16_30\"→23, \"mas_30\"→40, \"no_se\"→null.\n\n4. inversion_publicidad_mes (COP): Inversión mensual en publicidad/ads/marketing. Busca en cualquier campo: \"invierto X en ads\", \"pauta\", \"presupuesto de marketing\", \"gasto en publicidad\". Si no aparece: null.\n\n5. leads_mes (número): Personas que preguntaron en los últimos 30 días. Usa interesados_30d directamente. Mapea: \"no_se\"→null, \"menos_10\"→5, \"10_30\"→20, \"31_100\"→65, \"mas_100\"→120.\n\n6. ticket_promedio_cop (COP): Precio promedio por cliente/compra. Usa ticket_promedio. Parsea con estas reglas:\n   - Notación colombiana: \"150.000\" = 150000, \"1.500.000\" = 1500000\n   - Notación americana: \"150,000\" = 150000\n   - Rangos: \"500.000 a 800.000\" → usa promedio = 650000\n   - Sufijos: \"500k\" = 500000, \"1.5m\" o \"1,5 millones\" = 1500000\n   - \"$150.000\" → 150000\n\n7. tasa_conversion_pct (0-100): Si tienes leads_mes y clientes_nuevos_mes, calcula (clientes_nuevos_mes / leads_mes) * 100. Si hay un valor explícito de tasa de conversión en las respuestas, úsalo. Si no es calculable: null.\n\nREGLAS CRÍTICAS:\n- Devuelve SOLO JSON válido, sin markdown, sin explicaciones antes o después\n- Usa null (no 0) cuando un dato genuinamente no está disponible\n- Para rangos de precios, usa el promedio entre los extremos\n- Si hay múltiples menciones del mismo dato, usa el más reciente o específico\n- El campo \"notas\" es obligatorio: explica en 1 línea qué datos encontraste y cuáles son null\n\nFORMATO DE SALIDA (exactamente este JSON):\n{\n  \"ventas_mes\": number|null,\n  \"clientes_actuales\": number|null,\n  \"clientes_nuevos_mes\": number|null,\n  \"inversion_publicidad_mes\": number|null,\n  \"leads_mes\": number|null,\n  \"ticket_promedio_cop\": number|null,\n  \"tasa_conversion_pct\": number|null,\n  \"notas\": \"string\"\n}"
+            }
+          ]
+        }
+      },
+      "id": "ext00000-0000-0000-0000-000000000001",
+      "name": "Agente Extractor: Métricas",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -15072,
+        1300
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 400,
+          "temperature": 0
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -15072,
+        1500
+      ],
+      "id": "ext00000-0000-0000-0000-000000000002",
+      "name": "OpenAI · Extractor",
+      "credentials": {
+        "openAiApi": {
+          "id": "AO805CTOSUGBSXdD",
+          "name": "RibuZZ Final Automatización"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.text;\nconst extracted = JSON.parse(raw.match(/\\{[\\s\\S]*\\}/m)?.[0] || raw);\nconst answers = $('Fetch 40 Answers').all().map(i => i.json);\nreturn [{ json: { answers, metricas_extraidas: extracted } }];"
+      },
+      "id": "ext00000-0000-0000-0000-000000000003",
+      "name": "Parse Extractor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -14848,
+        1300
+      ]
     }
   ],
   "pinData": {},
@@ -949,7 +1040,7 @@
       "main": [
         [
           {
-            "node": "Code: Calculate Metrics",
+            "node": "Agente Extractor: Métricas",
             "type": "main",
             "index": 0
           }
@@ -1341,56 +1432,38 @@
         ]
       ]
     },
-    "Save Lead": {
+    "Agente Extractor: Métricas": {
       "main": [
         [
           {
-            "node": "Mark Diagnostic Completed",
+            "node": "Parse Extractor",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Mark Diagnostic Completed": {
-      "main": [
+    "OpenAI · Extractor": {
+      "ai_languageModel": [
         [
           {
-            "node": "Job → completed",
-            "type": "main",
+            "node": "Agente Extractor: Métricas",
+            "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "Job → completed": {
+    "Parse Extractor": {
       "main": [
         [
           {
-            "node": "Respond 200",
+            "node": "Code: Calculate Metrics",
             "type": "main",
             "index": 0
           }
         ]
       ]
     }
-  },
-  "active": false,
-  "settings": {
-    "executionOrder": "v1",
-    "availableInMCP": false,
-    "timeSavedMode": "fixed",
-    "timezone": "America/Bogota",
-    "callerPolicy": "workflowsFromSameOwner"
-  },
-  "versionId": "ribuzzai-v2-2026",
-  "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "d1ac319a3f904ba2c0145e65657c3d7257c79d701098eff14fc8f47ec5485bb4"
-  },
-  "tags": [
-    {
-      "name": "v2"
-    }
-  ]
+  }
 }
