@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createServer } from "@/lib/supabase/server";
+import { createServer, hasSupabaseServerEnv } from "@/lib/supabase/server";
 
 export default async function ProfilePage() {
+  if (!hasSupabaseServerEnv()) redirect("/login");
+
   const supabase = createServer();
   const {
     data: { user }

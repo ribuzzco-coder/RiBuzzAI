@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { createServer } from "@/lib/supabase/server";
+import { createServer, hasSupabaseServerEnv } from "@/lib/supabase/server";
 import { ScoreCard } from "@/components/results/ScoreCard";
 import { FugasCard } from "@/components/results/FugasCard";
 import { PlaybookAccordion } from "@/components/results/PlaybookAccordion";
@@ -18,6 +18,8 @@ export default async function ResultsPage({
 }: {
   searchParams: { d?: string };
 }) {
+  if (!hasSupabaseServerEnv()) redirect("/login");
+
   const supabase = createServer();
   const {
     data: { user }
