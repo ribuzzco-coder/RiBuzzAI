@@ -112,6 +112,14 @@ export default async function ResultsPage({
 
     {/* ── Header ── */}
       <header className="mb-8">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Link href="/profile" className="text-sm font-semibold text-ribuzz-pink hover:text-ribuzz-primary">
+            Todos mis diagnósticos
+          </Link>
+          <Link href="/diagnostic?new=1" className="text-sm text-ribuzz-muted hover:text-ribuzz-primary">
+            Nuevo diagnóstico
+          </Link>
+        </div>
         <p className="text-xs uppercase tracking-widest text-ribuzz-pink">Diagnóstico RiBuzz</p>
         <h1 className="mt-1 text-3xl font-bold">{company?.name ?? "Tu empresa"}</h1>
         <p className="mt-2 text-ribuzz-muted">{report.lectura_principal}</p>
