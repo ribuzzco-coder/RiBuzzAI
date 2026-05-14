@@ -21,6 +21,22 @@ export function scoreColor(score: number) {
   return "bg-score-escalable";
 }
 
+export function scoreBadgeColor(score: number) {
+  if (score <= 1) {
+    return "border-score-critico/35 bg-score-critico/12 text-red-200";
+  }
+  if (score === 2) {
+    return "border-score-debil/35 bg-score-debil/12 text-orange-200";
+  }
+  if (score === 3) {
+    return "border-score-funcional/35 bg-score-funcional/12 text-yellow-100";
+  }
+  if (score === 4) {
+    return "border-score-fuerte/35 bg-score-fuerte/12 text-lime-100";
+  }
+  return "border-score-escalable/35 bg-score-escalable/12 text-emerald-100";
+}
+
 export function scoreEstado(score: number): string {
   if (score <= 1) return "Crítico";
   if (score === 2) return "Débil";

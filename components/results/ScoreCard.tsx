@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { cn, scoreColor, scoreEstado, VARIABLE_LABELS } from "@/lib/utils";
+import { cn, scoreBadgeColor, scoreColor, scoreEstado, VARIABLE_LABELS } from "@/lib/utils";
 import type { VariableScore } from "@/lib/types";
 
 interface Props {
@@ -33,8 +33,8 @@ export function ScoreCard({ variable, score, detail, metricValue }: Props) {
           <div className="flex items-center gap-2">
             <span
               className={cn(
-                "rounded-full px-2.5 py-0.5 text-xs font-semibold text-white",
-                scoreColor(score)
+                "rounded-full border px-2.5 py-0.5 text-xs font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md",
+                scoreBadgeColor(score)
               )}
             >
               {scoreEstado(score)}
