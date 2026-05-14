@@ -12,6 +12,7 @@ export function DiagnosticClient() {
   const router = useRouter();
   const [diagnosticId, setDiagnosticId] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<number, { answer: string; isUnknown: boolean }>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,7 +38,30 @@ export function DiagnosticClient() {
       }
       const companyId = companies[0].id;
 
-      const forceNew = new URLSearchParams(window.location.search).get("new") === "1";
+      const params = new URLSearchParams(window.location.search);
+      const forceNew = params.get("new") === "1";
+      const requestedDiagnosticId = params.get("d");
+      if (requestedDiagnosticId && !forceNew) {
+        const { data: requested } = await supabase
+          .from("diagnostics")
+          .select("id, current_question, status, company_id")
+          .eq("id", requestedDiagnosticId)
+          .eq("company_id", companyId)
+          .maybeSingle();
+
+        if (requested?.status === "completed") {
+          router.push(`/results?d=${requested.id}`);
+          return;
+        }
+
+        if (requested) {
+          setDiagnosticId(requested.id);
+          setCurrentIndex(Math.max(0, (requested.current_question ?? 1) - 1));
+          setLoading(false);
+          return;
+        }
+      }
+
       const { data: existing } = forceNew
         ? { data: null }
         : await supabase
@@ -89,9 +113,18 @@ export function DiagnosticClient() {
   }
 
   const pregunta = QUESTIONS[currentIndex];
+  const savedAnswer = answers[pregunta.numero];
+
+  function handleBack() {
+    setCurrentIndex((index) => Math.max(0, index - 1));
+  }
 
   async function handleSubmit({ answer, isUnknown }: { answer: string; isUnknown: boolean }) {
     if (!diagnosticId) return;
+    setAnswers((current) => ({
+      ...current,
+      [pregunta.numero]: { answer, isUnknown }
+    }));
     await fetch("/api/diagnostic/save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -125,7 +158,13 @@ export function DiagnosticClient() {
             seccion={pregunta.seccion}
           />
         </div>
-        <QuestionCard pregunta={pregunta} onSubmit={handleSubmit} />
+        <QuestionCard
+          pregunta={pregunta}
+          onSubmit={handleSubmit}
+          onBack={handleBack}
+          canGoBack={currentIndex > 0}
+          defaultValue={savedAnswer?.isUnknown ? "" : savedAnswer?.answer ?? ""}
+        />
       </div>
     </main>
   );

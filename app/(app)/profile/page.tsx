@@ -53,7 +53,7 @@ export default async function ProfilePage() {
               </p>
             </div>
             <Link
-              href={d.status === "completed" ? `/results?d=${d.id}` : "/diagnostic"}
+              href={d.status === "completed" ? `/results?d=${d.id}` : `/diagnostic?d=${d.id}`}
               className="text-ribuzz-pink hover:underline"
             >
               {d.status === "completed" ? "Ver resultados" : "Continuar"}
