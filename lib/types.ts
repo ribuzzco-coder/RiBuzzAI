@@ -104,11 +104,16 @@ export type ScoreEstado =
   | "Fuerte"
   | "Escalable";
 
+export type ScoreConfianza = "alta" | "media" | "baja";
+
 export interface VariableScore {
   score: 1 | 2 | 3 | 4 | 5;
   estado: ScoreEstado;
+  confianza?: ScoreConfianza;
+  evidencia?: string;
   diagnostico: string;
   impacto: string;
+  brecha?: string;
   recomendacion: string;
 }
 
@@ -153,12 +158,15 @@ export interface SynthesizedDiagnostic {
 
 // ---------- P3 Reporte ----------
 export interface ReportOutput {
+  reconocimiento?: string;         // v2: apertura emocional personalizada
   situacion_actual: string;
+  fractura_silenciosa?: string;    // v2: problema real que el usuario no nombró
   lectura_principal: string;
   variables_fuertes: ScorerVariable[];
   variables_debiles: ScorerVariable[];
   recomendacion_general: string;
   siguiente_paso: string;
+  conexion_sueno?: string;         // v2: cierre motivacional con sueño declarado
 }
 
 // ---------- P4 Playbook ----------

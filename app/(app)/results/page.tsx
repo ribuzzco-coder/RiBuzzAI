@@ -5,7 +5,13 @@ import { ScoreCard } from "@/components/results/ScoreCard";
 import { FugasCard } from "@/components/results/FugasCard";
 import { PlaybookAccordion } from "@/components/results/PlaybookAccordion";
 import { formatCOP } from "@/lib/utils";
-import type { TopFuga, ScorerVariable, PlaybookAccion, CalculatedMetrics } from "@/lib/types";
+import type {
+  TopFuga,
+  ScorerVariable,
+  PlaybookAccion,
+  CalculatedMetrics,
+  VariableScore
+} from "@/lib/types";
 
 const VARIABLES_ORDER: ScorerVariable[] = [
   "problema", "solucion", "icp", "cliente_actual", "oferta", "ecuacion_valor",
@@ -59,16 +65,34 @@ export default async function ResultsPage({
   const metrics = (score.calculated_metrics ?? {}) as Partial<CalculatedMetrics>;
   const acciones = (playbook.acciones ?? []) as PlaybookAccion[];
 
+  // v2: per-variable full detail from raw_ai_response → scores_detail
+  const scoresDetail = (
+    (score.raw_ai_response as any)?.scores_detail ?? {}
+  ) as Record<ScorerVariable, VariableScore>;
+
   return (
     <main className="ribuzz-shell mx-auto max-w-4xl px-6 py-10">
-      {/* Header */}
+
+      {/* ── Reconocimiento emocional (v2) ── */}
+      {report.reconocimiento && (
+        <section className="mb-8 rounded-3xl border border-ribuzz-accent/25 bg-gradient-to-br from-ribuzz-accent/[0.07] to-ribuzz-violet/[0.07] p-6">
+          <p className="text-xs uppercase tracking-widest text-ribuzz-accent">
+            Para {company?.name ?? "ti"}
+          </p>
+          <p className="mt-3 whitespace-pre-line text-base leading-relaxed text-ribuzz-primary">
+            {report.reconocimiento}
+          </p>
+        </section>
+      )}
+
+      {/* ── Header ── */}
       <header className="mb-8">
         <p className="text-xs uppercase tracking-widest text-ribuzz-accent">Diagnóstico RiBuzz</p>
         <h1 className="mt-1 text-3xl font-bold">{company?.name ?? "Tu empresa"}</h1>
         <p className="mt-2 text-ribuzz-muted">{report.lectura_principal}</p>
       </header>
 
-      {/* Score global */}
+      {/* ── Score global ── */}
       <section className="glow-card mb-8 rounded-3xl p-6">
         <p className="text-sm text-ribuzz-muted">Score global</p>
         <p className="text-4xl font-bold text-ribuzz-primary">
@@ -83,34 +107,56 @@ export default async function ResultsPage({
         </div>
       </section>
 
-      {/* Top 3 fugas */}
+      {/* ── Top 3 fugas ── */}
       <section className="mb-10">
         <FugasCard fugas={fugas} />
       </section>
 
-      {/* Reporte */}
+      {/* ── Reporte ── */}
       <section className="glow-card mb-10 rounded-3xl p-6">
         <h2 className="text-lg font-semibold">Situación actual</h2>
         <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-ribuzz-primary">
           {report.situacion_actual}
         </p>
+
+        {/* v2: Fractura silenciosa */}
+        {report.fractura_silenciosa && (
+          <div className="mt-5 rounded-2xl border border-yellow-500/25 bg-yellow-500/[0.07] p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-yellow-400">
+              La fractura silenciosa
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-ribuzz-primary">
+              {report.fractura_silenciosa}
+            </p>
+          </div>
+        )}
+
+        {/* Siguiente paso */}
         <div className="mt-5 rounded-2xl border border-ribuzz-accent/25 bg-ribuzz-accent/[0.08] p-4 text-sm">
           <p className="font-semibold text-ribuzz-cyan">Siguiente paso (7 días):</p>
           <p className="mt-1 text-ribuzz-muted">{report.siguiente_paso}</p>
         </div>
       </section>
 
-      {/* Detalle 14 variables */}
+      {/* ── 14 variables (expandibles) ── */}
       <section className="mb-10">
-        <h2 className="mb-4 text-lg font-semibold">Detalle de las 14 variables</h2>
+        <h2 className="mb-1 text-lg font-semibold">Detalle de las 14 variables</h2>
+        <p className="mb-4 text-xs text-ribuzz-muted">
+          Toca cualquier variable para ver evidencia, diagnóstico, impacto y recomendación específica.
+        </p>
         <div className="grid gap-3 sm:grid-cols-2">
           {VARIABLES_ORDER.map((v) => (
-            <ScoreCard key={v} variable={v} score={(score as any)[v] ?? 0} />
+            <ScoreCard
+              key={v}
+              variable={v}
+              score={(score as any)[v] ?? 0}
+              detail={scoresDetail[v]}
+            />
           ))}
         </div>
       </section>
 
-      {/* Playbook */}
+      {/* ── Playbook ── */}
       <section className="mb-12">
         <h2 className="mb-4 text-lg font-semibold">Tu playbook</h2>
         <PlaybookAccordion acciones={acciones} />
@@ -130,7 +176,19 @@ export default async function ResultsPage({
         )}
       </section>
 
-      {/* CTA */}
+      {/* ── Conexión con el sueño (v2) ── */}
+      {report.conexion_sueno && (
+        <section className="mb-10 rounded-3xl border border-ribuzz-violet/30 bg-gradient-to-br from-ribuzz-violet/[0.08] to-ribuzz-accent/[0.06] p-6">
+          <p className="text-xs uppercase tracking-widest text-ribuzz-violet">
+            Tu visión
+          </p>
+          <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-ribuzz-primary">
+            {report.conexion_sueno}
+          </p>
+        </section>
+      )}
+
+      {/* ── CTA ── */}
       <div className="glow-card rounded-3xl p-6">
         <h2 className="text-lg font-semibold">¿Quieres profundizar con RiBuzz?</h2>
         <p className="mt-2 text-sm text-white/80">
