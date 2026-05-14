@@ -195,7 +195,7 @@ export default async function ResultsPage({
           Agenda 30 minutos para revisar tu diagnóstico contigo y definir próximos pasos.
         </p>
         <a
-          href={`https://wa.me/573000000000?text=${encodeURIComponent(
+          href={`https://wa.me/573332541346?text=${encodeURIComponent(
             `Hola, quiero revisar mi diagnóstico de ${company?.name ?? ""}.`
           )}`}
           target="_blank"

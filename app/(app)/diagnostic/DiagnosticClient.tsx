@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { QUESTIONS } from "@/lib/questions";
@@ -69,10 +70,15 @@ export function DiagnosticClient() {
 
   if (loading) {
     return (
-      <main className="ribuzz-shell grid min-h-screen place-items-center px-6">
-        <p className="glow-card rounded-3xl px-8 py-6 text-center text-ribuzz-muted">
-          Cargando diagnóstico...
-        </p>
+      <main className="ribuzz-shell min-h-screen px-6 py-8">
+        <div className="mx-auto max-w-3xl">
+          <DiagnosticHeader />
+        </div>
+        <div className="grid min-h-[70vh] place-items-center">
+          <p className="glow-card rounded-3xl px-8 py-6 text-center text-ribuzz-muted">
+            Cargando diagnóstico...
+          </p>
+        </div>
       </main>
     );
   }
@@ -109,15 +115,31 @@ export function DiagnosticClient() {
   }
 
   return (
-    <main className="ribuzz-shell mx-auto flex min-h-screen max-w-3xl flex-col justify-center px-6 py-10">
-      <div className="mb-8">
-        <ProgressBar
-          current={pregunta.numero}
-          total={QUESTIONS.length}
-          seccion={pregunta.seccion}
-        />
+    <main className="ribuzz-shell min-h-screen px-6 py-8">
+      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-3xl flex-col justify-center">
+        <DiagnosticHeader />
+        <div className="mb-8">
+          <ProgressBar
+            current={pregunta.numero}
+            total={QUESTIONS.length}
+            seccion={pregunta.seccion}
+          />
+        </div>
+        <QuestionCard pregunta={pregunta} onSubmit={handleSubmit} />
       </div>
-      <QuestionCard pregunta={pregunta} onSubmit={handleSubmit} />
     </main>
+  );
+}
+
+function DiagnosticHeader() {
+  return (
+    <div className="mb-8 flex items-center justify-between gap-4">
+      <Link href="/profile" className="text-sm font-semibold text-ribuzz-accent hover:text-ribuzz-cyan">
+        Mis diagnósticos
+      </Link>
+      <Link href="/diagnostic?new=1" className="text-sm text-ribuzz-muted hover:text-ribuzz-primary">
+        Nuevo diagnóstico
+      </Link>
+    </div>
   );
 }
