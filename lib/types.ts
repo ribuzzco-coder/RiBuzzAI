@@ -78,6 +78,7 @@ export interface CalculatedMetrics {
   leads_perdidos: number;
   ingreso_potencial: number;
   salud_comercial: number;
+  raw_numeric_inputs?: Record<string, number>;
 }
 
 // ---------- Variables del scorer ----------
