@@ -32,7 +32,7 @@ export default async function ProfilePage() {
         </div>
         <Link
           href="/diagnostic?new=1"
-          className="inline-flex items-center justify-center rounded-full border border-ribuzz-champagne/35 bg-gradient-to-br from-[#181820] to-[#2B2234] px-5 py-3 text-sm font-semibold text-ribuzz-platinum shadow-[0_0_18px_rgba(201,179,126,0.12)] transition hover:border-ribuzz-champagne/55"
+          className="inline-flex items-center justify-center rounded-full border border-ribuzz-accent/28 bg-gradient-to-br from-[#211326] to-[#3A2148] px-5 py-3 text-sm font-semibold text-white shadow-[0_0_18px_rgba(230,37,255,0.11)] transition hover:border-ribuzz-accent/45"
         >
           Nuevo diagnóstico
         </Link>
@@ -54,7 +54,7 @@ export default async function ProfilePage() {
             </div>
             <Link
               href={d.status === "completed" ? `/results?d=${d.id}` : "/diagnostic"}
-              className="text-ribuzz-champagne hover:underline"
+              className="text-ribuzz-pink hover:underline"
             >
               {d.status === "completed" ? "Ver resultados" : "Continuar"}
             </Link>
@@ -63,7 +63,7 @@ export default async function ProfilePage() {
         {(diagnostics ?? []).length === 0 && (
           <Link
             href="/diagnostic"
-            className="block rounded-3xl border-2 border-dashed border-ribuzz-champagne/35 bg-white/[0.04] p-8 text-center text-ribuzz-muted transition hover:border-ribuzz-champagne/55 hover:bg-white/[0.08]"
+            className="block rounded-3xl border-2 border-dashed border-ribuzz-accent/28 bg-white/[0.04] p-8 text-center text-ribuzz-muted transition hover:border-ribuzz-accent/45 hover:bg-white/[0.08]"
           >
             No tienes diagnósticos. Iniciar uno →
           </Link>
