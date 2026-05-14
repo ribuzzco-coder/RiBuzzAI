@@ -11,6 +11,21 @@ import type { CalculatedMetrics, DiagnosticAnswersFlat } from "./types";
  */
 function num(value: string | undefined, fallback = 0): number {
   if (!value) return fallback;
+  const normalized = value.toString().toLowerCase();
+  const ranges: Record<string, number> = {
+    menos_10: 5,
+    "10_30": 20,
+    "31_100": 65,
+    mas_100: 120,
+    "0": 0,
+    "1_5": 3,
+    "6_15": 10.5,
+    "16_30": 23,
+    mas_30: 40,
+    no_se: fallback
+  };
+  if (normalized in ranges) return ranges[normalized];
+
   const clean = value.toString().toLowerCase().replace(/[$,\s]/g, "");
   const matches = clean.match(/\d+(?:\.\d+)?(?:k|m|mm)?/g);
   if (!matches) return fallback;
@@ -33,13 +48,14 @@ export function calcularMetricas(
 ): CalculatedMetrics {
   const ventas = num(answers.comercial_ventas_mes);
   const clientes = Math.max(num(answers.comercial_clientes_actuales, 1), 1);
-  const nuevos = num(answers.comercial_clientes_nuevos);
+  const nuevos = num(answers.comercial_clientes_nuevos ?? answers.ventas_30d);
   const inversion = num(answers.comercial_inversion_mes);
-  const leads = Math.max(num(answers.comercial_leads_mes, 1), 1);
-  const conv_pct = num(answers.comercial_tasa_conversion);
+  const leads = Math.max(num(answers.comercial_leads_mes ?? answers.interesados_30d, 1), 1);
+  const conv_pct = num(answers.comercial_tasa_conversion, leads > 0 ? (nuevos / leads) * 100 : 0);
 
   // 1. Ticket medio
-  const ticket_medio = ventas / clientes;
+  const ticketDeclarado = num(answers.ticket_promedio);
+  const ticket_medio = ticketDeclarado > 0 ? ticketDeclarado : ventas / clientes;
 
   // 2. CAC
   const cac = nuevos > 0 ? inversion / nuevos : inversion;

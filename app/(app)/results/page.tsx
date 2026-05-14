@@ -65,10 +65,25 @@ export default async function ResultsPage({
   const metrics = (score.calculated_metrics ?? {}) as Partial<CalculatedMetrics>;
   const acciones = (playbook.acciones ?? []) as PlaybookAccion[];
 
-  // v2: per-variable full detail from raw_ai_response → scores_detail
-  const scoresDetail = (
-    (score.raw_ai_response as any)?.scores_detail ?? {}
-  ) as Record<ScorerVariable, VariableScore>;
+  const rawAi = (score.raw_ai_response ?? {}) as any;
+  const rawDetails = rawAi.scores_detail ?? rawAi.scores ?? {};
+  const scoresDetail = {
+    ...rawDetails,
+    ticket_medio:
+      rawDetails.ticket_medio ??
+      (metrics.ticket_medio
+        ? {
+            score: (score as any).ticket_medio ?? 0,
+            estado: "Dato recibido",
+            confianza: "alta",
+            evidencia: `Ticket medio declarado o calculado: ${formatCOP(metrics.ticket_medio)}`,
+            diagnostico: `${company?.name ?? "Tu empresa"} reporta un ticket medio de ${formatCOP(metrics.ticket_medio)}.`,
+            impacto: "Este dato permite evaluar margen, CAC y capacidad de reinversion con mayor precision.",
+            brecha: "Cruzar este ticket con costos de adquisicion y recurrencia para medir rentabilidad real.",
+            recomendacion: "Manten este valor actualizado cada mes y comparalo contra CAC y recompra."
+          }
+        : undefined)
+  } as Record<ScorerVariable, VariableScore>;
 
   return (
     <main className="ribuzz-shell mx-auto max-w-4xl px-6 py-10">
