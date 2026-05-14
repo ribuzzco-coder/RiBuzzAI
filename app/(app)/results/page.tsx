@@ -66,23 +66,45 @@ export default async function ResultsPage({
   const acciones = (playbook.acciones ?? []) as PlaybookAccion[];
 
   const rawAi = (score.raw_ai_response ?? {}) as any;
-  const rawDetails = rawAi.scores_detail ?? rawAi.scores ?? {};
-  const scoresDetail = {
-    ...rawDetails,
-    ticket_medio:
-      rawDetails.ticket_medio ??
-      (metrics.ticket_medio
+  const rawDetailsSource =
+    rawAi.scores_detail ??
+    rawAi.scores ??
+    rawAi.score_detail ??
+    rawAi.variables ??
+    {};
+  const rawDetails = Array.isArray(rawDetailsSource)
+    ? Object.fromEntries(rawDetailsSource.map((item: any) => [item.variable, item]))
+    : rawDetailsSource;
+  const ticketMetric = Number(
+    metrics.ticket_medio ??
+      rawAi.metrics?.ticket_medio ??
+      rawAi.calculated_metrics?.ticket_medio ??
+      rawAi.metricas?.ticket_medio ??
+      0
+  );
+  const ticketDetail =
+    rawDetails.ticket_medio ??
+    rawAi.ticket_medio ??
+    rawAi.ticketMedio ??
+    rawAi.ticket_promedio;
+  const ticketDetailObject =
+    ticketDetail && typeof ticketDetail === "object"
+      ? ticketDetail
+      : ticketMetric > 0 || ticketDetail
         ? {
-            score: (score as any).ticket_medio ?? 0,
+            score: Number((score as any).ticket_medio ?? ticketDetail?.score ?? 0),
             estado: "Dato recibido",
             confianza: "alta",
-            evidencia: `Ticket medio declarado o calculado: ${formatCOP(metrics.ticket_medio)}`,
-            diagnostico: `${company?.name ?? "Tu empresa"} reporta un ticket medio de ${formatCOP(metrics.ticket_medio)}.`,
+            evidencia: `Ticket medio declarado o calculado: ${formatCOP(ticketMetric || Number(ticketDetail) || 0)}`,
+            diagnostico: `${company?.name ?? "Tu empresa"} reporta un ticket medio de ${formatCOP(ticketMetric || Number(ticketDetail) || 0)}.`,
             impacto: "Este dato permite evaluar margen, CAC y capacidad de reinversion con mayor precision.",
             brecha: "Cruzar este ticket con costos de adquisicion y recurrencia para medir rentabilidad real.",
             recomendacion: "Manten este valor actualizado cada mes y comparalo contra CAC y recompra."
           }
-        : undefined)
+        : undefined;
+  const scoresDetail = {
+    ...rawDetails,
+    ticket_medio: ticketDetailObject
   } as Record<ScorerVariable, VariableScore>;
 
   return (
@@ -165,6 +187,7 @@ export default async function ResultsPage({
               variable={v}
               score={(score as any)[v] ?? 0}
               detail={scoresDetail[v]}
+              metricValue={v === "ticket_medio" && ticketMetric > 0 ? formatCOP(ticketMetric) : undefined}
             />
           ))}
         </div>

@@ -8,9 +8,10 @@ interface Props {
   variable: string;
   score: number;
   detail?: VariableScore;
+  metricValue?: string;
 }
 
-export function ScoreCard({ variable, score, detail }: Props) {
+export function ScoreCard({ variable, score, detail, metricValue }: Props) {
   const [open, setOpen] = useState(false);
   const hasDetail = !!detail;
 
@@ -78,6 +79,12 @@ export function ScoreCard({ variable, score, detail }: Props) {
             >
               {detail.confianza}
             </span>
+          </p>
+        )}
+
+        {metricValue && (
+          <p className="mt-2 text-xs font-semibold text-ribuzz-cyan">
+            Valor reportado: {metricValue}
           </p>
         )}
 
