@@ -8,11 +8,11 @@ export function PlaybookAccordion({ acciones }: { acciones: PlaybookAccion[] }) 
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <div className="space-y-3">
+    <div id="playbook" className="space-y-3">
       {acciones.map((a, i) => {
         const isOpen = open === i;
         return (
-          <div key={i} className="glow-card overflow-hidden rounded-2xl">
+          <div key={i} id={`accion-${a.prioridad}`} className="glow-card overflow-hidden rounded-2xl">
             <button
               onClick={() => setOpen(isOpen ? null : i)}
               className="flex w-full items-center justify-between gap-3 p-4 text-left"

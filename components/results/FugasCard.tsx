@@ -28,6 +28,12 @@ export function FugasCard({ fugas }: { fugas: TopFuga[] }) {
                 <strong className="text-ribuzz-pink">Recomendación: </strong>
                 {f.recomendacion}
               </p>
+              <a
+                href="#playbook"
+                className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-ribuzz-accent hover:underline"
+              >
+                Ver plan de acción →
+              </a>
             </div>
           </li>
         ))}

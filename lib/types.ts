@@ -180,6 +180,7 @@ export interface PlaybookAccion {
   resultado_esperado: string;
   tiempo_estimado: string;
   prioridad: number;
+  fuga_atacada?: string;
 }
 
 export interface PlaybookOutput {

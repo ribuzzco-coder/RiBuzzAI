@@ -17,13 +17,13 @@
           }
         }
       },
-      "id": "20faa152-5832-4b98-85a3-866537bb31a2",
+      "id": "86b0a9fa-98ef-4add-be62-119912bd32ae",
       "name": "Webhook (entry)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -16640,
-        1952
+        -21392,
+        2416
       ],
       "webhookId": "ribuzz-diagnostic"
     },
@@ -40,13 +40,13 @@
           ]
         }
       },
-      "id": "cbf9f360-027c-4a24-b35e-882d1eabddec",
+      "id": "22b4e456-4a40-49cb-9dc6-595aa3b60fc3",
       "name": "Agente 0: Segment Classifier",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.4,
       "position": [
-        -15216,
-        1952
+        -19360,
+        2400
       ]
     },
     {
@@ -59,49 +59,52 @@
         },
         "builtInTools": {},
         "options": {
-          "maxTokens": 600,
+          "maxTokens": 800,
           "temperature": 0
         }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        -15216,
-        2160
+        -19360,
+        2608
       ],
-      "id": "273f9952-3739-4f8f-ac5b-03f90b7aedb7",
+      "id": "f9fda8af-d9c7-492e-a6d9-0a971a217de0",
       "name": "OpenAI · Agente 0",
       "credentials": {
         "openAiApi": {
           "id": "AO805CTOSUGBSXdD",
           "name": "RibuZZ Final Automatización"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
         "jsCode": "const raw = $input.first().json.text;\nconst p0 = JSON.parse(raw.match(/\\{[\\s\\S]*\\}$/m)?.[0] || raw);\nconst ctx = $('Code: Calculate Metrics1').first().json;\nreturn [{ json: { p0, company: ctx.company, answers: ctx.answers, flat: ctx.flat, metrics: ctx.metrics } }];"
       },
-      "id": "dc71234d-0047-4e70-8c2e-d17b90c11bb7",
+      "id": "8e3187d0-cdb9-41dc-a238-320c262a92bb",
       "name": "Parse P0",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -14928,
-        1952
+        -19072,
+        2400
       ]
     },
     {
       "parameters": {
         "jsCode": "const secret = $input.first().json.headers['x-ribuzz-secret'];\nconst expected = \"Preseed2026+*\";\nif (!secret || secret !== expected) {\n  throw new Error('Invalid webhook secret');\n}\nconst body = $input.first().json.body;\nif (!body?.job_id || !body?.diagnostic_id) {\n  throw new Error('Missing job_id or diagnostic_id');\n}\nreturn [{ json: { job_id: body.job_id, diagnostic_id: body.diagnostic_id } }];"
       },
-      "id": "4541e7a2-cc99-4cac-b60b-e3e80896f11b",
+      "id": "202581d7-8a21-4e07-be6a-d7e88aa1d0ec",
       "name": "Validate Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -16384,
-        1952
+        -21136,
+        2416
       ]
     },
     {
@@ -112,13 +115,13 @@
           "queryReplacement": "={{ [$execution.id, $json.job_id] }}"
         }
       },
-      "id": "9ffb9d91-a17a-4623-bbdf-379623b5aa93",
+      "id": "48953d97-33b2-45d6-ac50-a68cf6fdeabf",
       "name": "Job → running1",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        -16096,
-        1952
+        -20848,
+        2416
       ],
       "credentials": {
         "postgres": {
@@ -135,13 +138,13 @@
           "queryReplacement": "={{ [$('Validate Input').first().json.diagnostic_id] }}"
         }
       },
-      "id": "f0ab7a28-790c-4ada-a815-c4fd2aaf5cd2",
+      "id": "5151b501-4514-4c4a-b167-dbc8c96c4e23",
       "name": "Fetch Diagnostic + Company1",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        -15872,
-        1952
+        -20624,
+        2416
       ],
       "credentials": {
         "postgres": {
@@ -158,13 +161,13 @@
           "queryReplacement": "={{ [$('Validate Input').first().json.diagnostic_id] }}"
         }
       },
-      "id": "fe5fcacf-c268-492e-904d-51df62fb708d",
+      "id": "6f1db67d-c056-4ce1-82c2-e2ab5760765c",
       "name": "Fetch 40 Answers1",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        -15648,
-        1952
+        -20400,
+        2416
       ],
       "credentials": {
         "postgres": {
@@ -175,15 +178,15 @@
     },
     {
       "parameters": {
-        "jsCode": "const answers = $json.answers;\nconst mx = $json.metricas_extraidas || {};\nconst flat = {};\nfor (const a of answers) {\n  const vars = (a.variable_bd || '').split(',').map(v => v.trim());\n  for (const v of vars) flat[v] = a.is_unknown ? '' : (a.answer_text || '');\n}\nfunction parseToken(token) {\n  const suffix = token.match(/(mm|m|k)$/)?.[1];\n  let body = token.replace(/(mm|m|k)$/, '');\n  if (body.includes('.') && body.includes(',')) body = body.replace(/\\./g,'').replace(',','.');\n  else if (body.includes(',') && /\\d{3}$/.test(body.split(',')[1])) body = body.replace(',','');\n  else if (body.includes(',')) body = body.replace(',','.');\n  else if (/^\\d{1,3}(?:\\.\\d{3})+$/.test(body)) body = body.replace(/\\./g,'');\n  let parsed = Number.parseFloat(body);\n  if (!Number.isFinite(parsed)) return 0;\n  if (suffix === 'mm' || suffix === 'm') parsed *= 1e6;\n  if (suffix === 'k') parsed *= 1e3;\n  return parsed;\n}\nfunction num(value, fallback = 0) {\n  if (value === undefined || value === null || value === '') return fallback;\n  if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;\n  const normalized = value.toString().trim().toLowerCase();\n  const ranges = { menos_10:5,'10_30':20,'31_100':65,mas_100:120,'0':0,'1_5':3,'6_15':10.5,'16_30':23,mas_30:40,no_se:fallback };\n  if (Object.prototype.hasOwnProperty.call(ranges, normalized)) return ranges[normalized];\n  const clean = normalized.replace(/cop|pesos|peso|aprox\\.?|aproximadamente|~|\\$/g,'').replace(/\\s+/g,'');\n  const matches = clean.match(/\\d+(?:[.,]\\d+)*(?:mm|m|k)?/g);\n  if (!matches) return fallback;\n  const nums = matches.map(parseToken).filter(n => Number.isFinite(n));\n  if (!nums.length) return fallback;\n  return nums.length >= 2 ? (nums[0]+nums[1])/2 : nums[0];\n}\nfunction clampPct(v) { return Number.isFinite(v)?Math.max(0,Math.min(v,100)):0; }\nfunction safeRound(v) { return Number.isFinite(v)?Math.round(v):0; }\nfunction pick(ex,fb) { return (ex!==null&&ex!==undefined)?ex:fb; }\nconst ventas    = pick(mx.ventas_mes,           num(flat.comercial_ventas_mes));\nconst clientes  = Math.max(pick(mx.clientes_actuales, num(flat.comercial_clientes_actuales,1)),1);\nconst nuevos    = pick(mx.clientes_nuevos_mes,  num(flat.comercial_clientes_nuevos||flat.ventas_30d));\nconst inversion = pick(mx.inversion_publicidad_mes, num(flat.comercial_inversion_mes));\nconst leads     = Math.max(pick(mx.leads_mes,   num(flat.comercial_leads_mes||flat.interesados_30d,1)),1);\nconst conv      = clampPct(pick(mx.tasa_conversion_pct, num(flat.comercial_tasa_conversion,leads>0?(nuevos/leads)*100:0)));\nconst ticketDeclarado = pick(mx.ticket_promedio_cop, num(flat.ticket_promedio));\nconst ticket_medio = ticketDeclarado>0?ticketDeclarado:(ventas>0?ventas/clientes:0);\nconst cac    = nuevos>0?inversion/nuevos:inversion;\nconst ltv    = ticket_medio*12;\nconst ratio_cac_ticket = ticket_medio>0?(cac/ticket_medio)*100:100;\nconst ratio_cac_ltv    = ltv>0?(cac/ltv)*100:100;\nconst leads_perdidos   = safeRound(leads*(1-conv/100));\nconst clientes_adicionales = safeRound(leads*(Math.min(conv/100+0.1,1)-conv/100));\nconst ingreso_potencial    = clientes_adicionales*ticket_medio;\nconst salud_comercial = Math.min(ticket_medio/1e6,1)*100*0.25+Math.max(0,100-ratio_cac_ticket)*0.3+Math.min(conv*2,100)*0.25+Math.max(0,100-ratio_cac_ltv)*0.2;\nconst metrics = {\n  ticket_medio:safeRound(ticket_medio),cac:safeRound(cac),ltv:safeRound(ltv),\n  ratio_cac_ticket:Math.round(ratio_cac_ticket*10)/10,ratio_cac_ltv:Math.round(ratio_cac_ltv*10)/10,\n  leads_perdidos,ingreso_potencial:safeRound(ingreso_potencial),salud_comercial:safeRound(salud_comercial),\n  raw_numeric_inputs:{ventas,clientes,nuevos,inversion,leads,conversion_pct:conv,ticket_declarado:ticketDeclarado}\n};\nconst company = $('Fetch Diagnostic + Company1').first().json;\nreturn [{ json: { answers, flat, metrics, company } }];"
+        "jsCode": "const answers = $json.answers;\nconst mx = $json.metricas_extraidas || {};\nconst flat = {};\nfor (const a of answers) {\n  const vars = (a.variable_bd || '').split(',').map(v => v.trim());\n  for (const v of vars) flat[v] = a.is_unknown ? '' : (a.answer_text || '');\n}\nfunction parseToken(token) {\n  const suffix = token.match(/(mm|m|k)$/)?.[1];\n  let body = token.replace(/(mm|m|k)$/, '');\n  if (body.includes('.') && body.includes(',')) body = body.replace(/\\./g, '').replace(',', '.');\n  else if (body.includes(',') && /\\d{3}$/.test(body.split(',')[1])) body = body.replace(',', '');\n  else if (body.includes(',')) body = body.replace(',', '.');\n  else if (/^\\d{1,3}(?:\\.\\d{3})+$/.test(body)) body = body.replace(/\\./g, '');\n  let parsed = Number.parseFloat(body);\n  if (!Number.isFinite(parsed)) return 0;\n  if (suffix === 'mm' || suffix === 'm') parsed *= 1e6;\n  if (suffix === 'k') parsed *= 1e3;\n  return parsed;\n}\nfunction num(value, fallback = 0) {\n  if (value === undefined || value === null || value === '') return fallback;\n  if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;\n  const normalized = value.toString().trim().toLowerCase();\n  const ranges = { menos_10:5,'10_30':20,'31_100':65,mas_100:120,'0':0,'1_5':3,'6_15':10.5,'16_30':23,mas_30:40,no_se:fallback };\n  if (Object.prototype.hasOwnProperty.call(ranges, normalized)) return ranges[normalized];\n  const clean = normalized.replace(/cop|pesos|peso|aprox\\.?|aproximadamente|~|\\$/g,'').replace(/\\s+/g,'');\n  const matches = clean.match(/\\d+(?:[.,]\\d+)*(?:mm|m|k)?/g);\n  if (!matches) return fallback;\n  const nums = matches.map(parseToken).filter(n => Number.isFinite(n));\n  if (!nums.length) return fallback;\n  return nums.length >= 2 ? (nums[0] + nums[1]) / 2 : nums[0];\n}\nfunction clampPct(v) { return Number.isFinite(v) ? Math.max(0, Math.min(v, 100)) : 0; }\nfunction safeRound(v) { return Number.isFinite(v) ? Math.round(v) : 0; }\nfunction pick(ex, fallback) { return (ex !== null && ex !== undefined) ? ex : fallback; }\n\nconst ventas    = pick(mx.ventas_mes,             num(flat.comercial_ventas_mes));\nconst clientes  = Math.max(pick(mx.clientes_actuales, num(flat.comercial_clientes_actuales, 1)), 1);\nconst nuevos    = pick(mx.clientes_nuevos_mes,    num(flat.comercial_clientes_nuevos || flat.ventas_30d));\nconst inversion = pick(mx.inversion_publicidad_mes, num(flat.comercial_inversion_mes));\nconst leads     = Math.max(pick(mx.leads_mes,     num(flat.comercial_leads_mes || flat.interesados_30d, 1)), 1);\nconst conv      = clampPct(pick(mx.tasa_conversion_pct, num(flat.comercial_tasa_conversion, leads > 0 ? (nuevos/leads)*100 : 0)));\nconst ticketDeclarado = pick(mx.ticket_promedio_cop, num(flat.ticket_promedio));\nconst ticket_medio    = ticketDeclarado > 0 ? ticketDeclarado : (ventas > 0 ? ventas/clientes : 0);\nconst cac    = nuevos > 0 ? inversion/nuevos : inversion;\nconst ltv    = ticket_medio * 12;\nconst ratio_cac_ticket = ticket_medio > 0 ? (cac/ticket_medio)*100 : 100;\nconst ratio_cac_ltv    = ltv > 0 ? (cac/ltv)*100 : 100;\nconst leads_perdidos   = safeRound(leads * (1 - conv/100));\nconst conversion_actual   = conv/100;\nconst conversion_objetivo = Math.min(conversion_actual + 0.1, 1);\nconst clientes_adicionales = safeRound(leads * (conversion_objetivo - conversion_actual));\nconst ingreso_potencial    = clientes_adicionales * ticket_medio;\nconst s_ticket  = Math.min(ticket_medio/1e6, 1)*100;\nconst s_cac     = Math.max(0, 100 - ratio_cac_ticket);\nconst s_conv    = Math.min(conv*2, 100);\nconst s_ltv_cac = Math.max(0, 100 - ratio_cac_ltv);\nconst salud_comercial = s_ticket*0.25 + s_cac*0.3 + s_conv*0.25 + s_ltv_cac*0.2;\nconst metrics = {\n  ticket_medio: safeRound(ticket_medio), cac: safeRound(cac), ltv: safeRound(ltv),\n  ratio_cac_ticket: Math.round(ratio_cac_ticket*10)/10,\n  ratio_cac_ltv: Math.round(ratio_cac_ltv*10)/10,\n  leads_perdidos, ingreso_potencial: safeRound(ingreso_potencial),\n  salud_comercial: safeRound(salud_comercial),\n  raw_numeric_inputs: { ventas, clientes, nuevos, inversion, leads, conversion_pct: conv, ticket_declarado: ticketDeclarado }\n};\nconst company = $('Fetch Diagnostic + Company1').first().json;\nreturn [{ json: { answers, flat, metrics, company } }];"
       },
-      "id": "b0fad6b0-c011-4152-95bc-c5b6c58aef96",
+      "id": "f493f00b-2a31-49ae-8786-57226254e1ed",
       "name": "Code: Calculate Metrics1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -15424,
-        1952
+        -19568,
+        2400
       ]
     },
     {
@@ -194,60 +197,63 @@
           "messageValues": [
             {
               "type": "HumanMessagePromptTemplate",
-              "message": "Eres el AGENTE 1 — SINTETIZADOR de RiBuzz AI. Estructuras las respuestas del diagnóstico en JSON tipado con las 14 variables del scorer. Eres el único agente que toca los datos crudos — lo que escribas aquí determina la calidad de TODO lo que viene después.\n\nEl input JSON contiene: empresa, respuestas, segmento (clasificación del Agente 0).\n\nUSA EL SEGMENTO COMO LENTE:\n- tipo_empresa determina qué variables son más críticas\n- calidad_datos determina el confidence por variable — úsalo como referencia\n- variables_sin_dato: registra DESCONOCIDO para esas variables sin excepción\n\nREGLAS DE FIDELIDAD — CRÍTICAS:\n1. NUNCA inventes datos. Si no hay dato → texto=\"DESCONOCIDO\", confidence=\"baja\"\n2. Si is_unknown=true → completitud=0, is_unknown=true, confidence=\"baja\"\n3. Dato vago (\"unos 5\", \"más o menos\") → registra la frase real + nota en observaciones, confidence=\"media\", completitud=0.4\n4. Contradicciones detectadas por A0 → regístralas en observaciones de la variable afectada\n5. El campo texto contiene info del formulario, no tu interpretación\n\nFOCO POR TIPO DE EMPRESA:\n- \"temprana\": máximo detalle en problema, icp, oferta, conversion, ecuacion_valor\n- \"crecimiento\": máximo detalle en canal_adquisicion, seguimiento, conversion, recurrencia, ticket_medio\n- \"transformacion\": máximo detalle en escalamiento, capacidad_ejecucion, seguimiento, cac\n\nALERTA DE DATOS GLOBALMENTE BAJOS:\nSi 6 o más variables tienen confidence=\"baja\" o is_unknown=true → \"alerta_cobertura\": true\n\nCAMPOS POR VARIABLE:\n- texto: información literal del formulario (no parafrasear)\n- diferenciador: solo para oferta, solucion, icp\n- impacto: consecuencia que mencionó el usuario (solo si lo dijo)\n- completitud: 0=sin dato | 0.4=parcial | 0.7=claro | 1=verificable\n- is_unknown: true si el usuario marcó \"no sé\" o dejó en blanco\n- confidence: \"alta\"|\"media\"|\"baja\"\n\n\n━━━ CAPTURA DE TONO EMOCIONAL — CAMPO OBLIGATORIO ━━━\nAgrega 'tono_fundador' al JSON: {\"registro\":\"frustrado|entusiasmado|ansioso|cansado|esperanzado|confundido\",\"frases_clave\":[\"frase1\",\"frase2\"],\"lo_que_mas_le_pesa\":\"\"}\nElige el registro dominante leyendo cómo escribe. frases_clave: 2 frases exactas del formulario que revelan su estado.\nPara que Reporter y Playbook hablen en el mismo registro emocional.\nDevuelve SOLO JSON válido:\n{\"empresa\":{\"nombre\":\"\",\"sector\":\"\",\"etapa\":\"\",\"tamano\":\"\",\"tipo_empresa\":\"\"},\"variables\":{\"problema\":{\"texto\":\"\",\"impacto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"solucion\":{\"texto\":\"\",\"diferenciador\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"icp\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"cliente_actual\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"oferta\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"ecuacion_valor\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"ticket_medio\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"recurrencia\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"canal_adquisicion\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"cac\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"conversion\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"seguimiento\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"escalamiento\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"capacidad_ejecucion\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"}},\"metricas_brutas\":{\"ventas_mes\":\"\",\"clientes_actuales\":\"\",\"clientes_nuevos\":\"\",\"inversion_mes\":\"\",\"leads_mes\":\"\",\"tasa_conversion\":\"\"},\"objetivos\":{\"meta_3m\":\"\",\"obstaculo\":\"\",\"sueño_declarado\":\"\"},\"flags\":[],\"observaciones\":{},\"alerta_cobertura\":false,\"tono_fundador\":{\"registro\":\"\",\"frases_clave\":[],\"lo_que_mas_le_pesa\":\"\"}}"
+              "message": "Eres el AGENTE 1 — SINTETIZADOR de RiBuzz AI. Estructuras las respuestas del diagnóstico en JSON tipado con las 14 variables del scorer. Eres el único agente que toca los datos crudos — lo que escribas aquí determina la calidad de TODO lo que viene después.\n\nEl input JSON contiene: empresa, respuestas, segmento (clasificación del Agente 0).\n\nUSA EL SEGMENTO COMO LENTE:\n- tipo_empresa determina qué variables son más críticas\n- calidad_datos determina el confidence por variable — úsalo como referencia\n- variables_sin_dato: registra DESCONOCIDO para esas variables sin excepción\n\nREGLAS DE FIDELIDAD — CRÍTICAS:\n1. NUNCA inventes datos. Si no hay dato → texto=\"DESCONOCIDO\", confidence=\"baja\"\n2. Si is_unknown=true → completitud=0, is_unknown=true, confidence=\"baja\"\n3. Dato vago (\"unos 5\", \"más o menos\") → registra la frase real + nota en observaciones, confidence=\"media\", completitud=0.4\n4. Contradicciones detectadas por A0 → regístralas en observaciones de la variable afectada\n5. El campo texto contiene info del formulario, no tu interpretación\n\nFOCO POR TIPO DE EMPRESA:\n- \"temprana\": máximo detalle en problema, icp, oferta, conversion, ecuacion_valor\n- \"crecimiento\": máximo detalle en canal_adquisicion, seguimiento, conversion, recurrencia, ticket_medio\n- \"transformacion\": máximo detalle en escalamiento, capacidad_ejecucion, seguimiento, cac\n\nALERTA DE DATOS GLOBALMENTE BAJOS:\nSi 6 o más variables tienen confidence=\"baja\" o is_unknown=true → \"alerta_cobertura\": true\n\nCAMPOS POR VARIABLE:\n- texto: información literal del formulario (no parafrasear)\n- diferenciador: solo para oferta, solucion, icp\n- impacto: consecuencia que mencionó el usuario (solo si lo dijo)\n- completitud: 0=sin dato | 0.4=parcial | 0.7=claro | 1=verificable\n- is_unknown: true si el usuario marcó \"no sé\" o dejó en blanco\n- confidence: \"alta\"|\"media\"|\"baja\"\n\n\n━━━ CAPTURA DE TONO EMOCIONAL — NUEVO CAMPO OBLIGATORIO ━━━\nAgrega el campo \"tono_fundador\" al JSON de salida. Es un objeto con:\n- registro: \"frustrado\" | \"entusiasmado\" | \"ansioso\" | \"cansado\" | \"esperanzado\" | \"confundido\"\n  (elige el más dominante leyendo cómo escribe, qué palabras repite, qué énfasis pone)\n- frases_clave: array con 2-3 frases exactas del formulario que revelan su estado emocional real\n- lo_que_mas_le_pesa: en 1 frase, qué es lo que más le preocupa aunque no lo diga directamente\nEste campo es para que el Reporter y el Playbook hablen en el mismo registro emocional que el fundador. No es diagnóstico psicológico — es calibración de tono.\nDevuelve SOLO JSON válido:\n{\"empresa\":{\"nombre\":\"\",\"sector\":\"\",\"etapa\":\"\",\"tamano\":\"\",\"tipo_empresa\":\"\"},\"variables\":{\"problema\":{\"texto\":\"\",\"impacto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"solucion\":{\"texto\":\"\",\"diferenciador\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"icp\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"cliente_actual\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"oferta\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"ecuacion_valor\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"ticket_medio\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"recurrencia\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"canal_adquisicion\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"cac\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"conversion\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"seguimiento\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"escalamiento\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"},\"capacidad_ejecucion\":{\"texto\":\"\",\"completitud\":0,\"is_unknown\":false,\"confidence\":\"\"}},\"metricas_brutas\":{\"ventas_mes\":\"\",\"clientes_actuales\":\"\",\"clientes_nuevos\":\"\",\"inversion_mes\":\"\",\"leads_mes\":\"\",\"tasa_conversion\":\"\"},\"objetivos\":{\"meta_3m\":\"\",\"obstaculo\":\"\",\"sueño_declarado\":\"\"},\"flags\":[],\"observaciones\":{},\"alerta_cobertura\":false,\"tono_fundador\":{\"registro\":\"\",\"frases_clave\":[],\"lo_que_mas_le_pesa\":\"\"}}"
             }
           ]
         }
       },
-      "id": "661a82d5-1fc5-4da6-abe0-2ef5caa4ea59",
+      "id": "973fe392-697a-4a26-9db5-18bba2ed537c",
       "name": "Agente 1: Sintetizador1",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.4,
       "position": [
-        -14736,
-        1952
+        -18880,
+        2400
       ]
     },
     {
       "parameters": {
         "model": {
           "__rl": true,
-          "value": "gpt-4o-mini",
+          "value": "gpt-4o",
           "mode": "list",
-          "cachedResultName": "gpt-4o-mini"
+          "cachedResultName": "gpt-4o"
         },
         "builtInTools": {},
         "options": {
-          "maxTokens": 1000,
+          "maxTokens": 2200,
           "temperature": 0
         }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        -14736,
-        2160
+        -18880,
+        2608
       ],
-      "id": "7330892c-e96c-4d60-901e-d6d3d562bf8f",
+      "id": "efbe022a-eb06-427f-952a-fe46418e5b21",
       "name": "OpenAI · Agente ",
       "credentials": {
         "openAiApi": {
           "id": "AO805CTOSUGBSXdD",
           "name": "RibuZZ Final Automatización"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
         "jsCode": "const raw = $input.first().json.text;\nconst p1 = JSON.parse(raw.match(/\\{[\\s\\S]*\\}$/m)?.[0] || raw);\nconst metricsCtx = $('Parse P0').first().json;\nreturn [{ json: { p1, metrics: metricsCtx.metrics, company: metricsCtx.company, p0: metricsCtx.p0, p1_raw: raw } }];"
       },
-      "id": "a9fff331-b923-4dd5-aad2-e3af37fd946a",
+      "id": "c93737de-9525-41d7-b508-c798ec055d6c",
       "name": "Parse P",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -14432,
-        1952
+        -18576,
+        2400
       ]
     },
     {
@@ -258,13 +264,13 @@
           "queryReplacement": "={{ [$('Validate Input').first().json.job_id] }}"
         }
       },
-      "id": "d6d158f5-22e5-4265-8cb4-16a61a25f31f",
+      "id": "eb75fceb-f28b-4d0b-868f-fb03b8d3cacf",
       "name": "Job → scoring1",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        -14272,
-        1952
+        -18416,
+        2400
       ],
       "credentials": {
         "postgres": {
@@ -277,13 +283,13 @@
       "parameters": {
         "jsCode": "// Restore context after Postgres UPDATE (Job → scoring returns {})\nconst ctx = $('Parse P').first().json;\nreturn [{ json: { p1: ctx.p1, metrics: ctx.metrics, company: ctx.company, p0: ctx.p0 } }];"
       },
-      "id": "928b4e68-0631-4b84-9b64-d9e4f6233500",
+      "id": "7440e188-fdd3-4813-b5cd-3f5883533e89",
       "name": "Prep Scorer Input1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -14080,
-        1952
+        -18224,
+        2400
       ]
     },
     {
@@ -294,18 +300,18 @@
           "messageValues": [
             {
               "type": "HumanMessagePromptTemplate",
-              "message": "Eres el MASTER SCORER de RiBuzz AI. Evalúas las 14 variables con precisión clínica. Tu output aparece directamente en pantalla frente al fundador.\n\nESCALA: 1=Crítico · 2=Débil · 3=Funcional · 4=Fuerte · 5=Escalable\n\n━━━ REGLA ANTI-PLANTILLA — PROHIBICIÓN ABSOLUTA ━━━\nNUNCA abras diagnostico, estado, impacto ni recomendacion con:\n- \"Con los datos disponibles\" / \"Según la información\" / \"Basado en las respuestas\"\n- \"Esta empresa\" / \"El negocio\" / \"Se recomienda estructurar/alinear/optimizar\"\nCORRECTO: \"RiBuzz no tiene claro cuánto le cuesta conseguir un cliente nuevo — sin ese número no puede decidir cuánto invertir en crecer.\"\nINCORRECTO: \"Con los datos disponibles, RiBuzz tiene un CAC mayor al 50% del ticket.\"\n\n━━━ REGLA DE CONFIANZA ━━━\n- confianza=\"baja\" o is_unknown=true → score máximo 2\n- confianza=\"media\" → score máximo 4\nCuando faltan datos: cruza con otras respuestas disponibles para diagnosticar, no uses plantilla.\n\n━━━ REGLA DE EVIDENCIA ━━━\nevidencia DEBE ser cita o paráfrasis del formulario. Sin evidencia → score máximo 2.\n\n━━━ REGLA DE ESPECIFICIDAD ━━━\n- diagnostico incluye SIEMPRE el nombre real del negocio O un hecho concreto de esta empresa\n- estado: 3-5 palabras específicas (NO genéricas de la escala)\n- impacto: consecuencia concreta en dinero o clientes esta semana\n- recomendacion: acción ejecutable en 7 días con sus herramientas/canales reales\n\n── DIMENSIÓN 1: PRODUCT-MARKET FIT ──\nPROBLEMA: 1=no articula | 2=síntomas vagos | 3=claro, impacto vago | 4=problema+impacto | 5=cuantificado+urgencia\nSOLUCIÓN: 1=no explica | 2=vaga | 3=diferenciador genérico | 4=verificable | 5=único+demostrable\nICP: 1=no sabe | 2=perfil amplio | 3=sin patrón cierre | 4=perfil+sabe por qué cierra | 5=ICP=cliente real\nCLIENTE_ACTUAL: 1=sin clientes | 2=sin patrón | 3=sin denominador | 4=sabe qué perfil | 5=ICP=real+referidos\n\n── DIMENSIÓN 2: MONETIZACIÓN ──\nOFERTA: 1=sin definir | 2=precio sin alcance | 3=precio+alcance sin resultado | 4=precio+alcance+resultado | 5=productizada\nECUACION_VALOR: 1=no articula por qué vale | 2=resultado vago | 3=sin CTA | 4=resultado+CTA | 5=medible+prueba social\nTICKET_MEDIO: usa metrics.ticket_medio. 1=no cubre operación | 2=sin margen | 3=margen mínimo | 4=para reinvertir | 5=alto+LTV\nRECURRENCIA: 1=sin plan | 2=algunos sin sistema | 3=espontánea | 4=proceso activo | 5=sistema documentado\n\n── DIMENSIÓN 3: ADQUISICIÓN ──\nCANAL_ADQUISICION: 1=sin canal | 2=referidos impredecibles | 3=identificado no escalable | 4=predecible | 5=multi-canal medido\nCAC: usa metrics.ratio_cac_ticket. 1=no sabe | 2=>50% ticket | 3=20-50% | 4=<20% lo mide | 5=optimizado\nCONVERSION: usa metrics.leads_perdidos. 1=no sabe | 2=<10% | 3=10-25% | 4=>25% con proceso | 5=>40% documentado\n\n── DIMENSIÓN 4: OPERACIONES ──\nSEGUIMIENTO: 1=sin seguimiento | 2=cuando recuerda | 3=sin documentar | 4=documentado | 5=CRM+secuencia\nESCALAMIENTO: 1=100% fundador | 2=mayoría fundador | 3=algunos procesos | 4=mitad documentados | 5=80%+ delegados\nCAPACIDAD_EJECUCION: 1=sin herramientas | 2=<2h/semana | 3=básica | 4=adecuada | 5=stack+equipo+tiempo\n\nDevuelve SOLO JSON:\n{\"scores\":{\"problema\":{\"score\":0,\"estado\":\"\",\"confianza\":\"\",\"evidencia\":\"\",\"diagnostico\":\"\",\"impacto\":\"\",\"brecha\":\"\",\"recomendacion\":\"\"},...(14 variables)}}"
+              "message": "Eres el MASTER SCORER de RiBuzz AI. Evalúas las 14 variables con precisión clínica. Tu output aparece directamente en pantalla frente al fundador. Cada campo que escribas es lo que él lee.\n\nESCALA: 1=Crítico · 2=Débil · 3=Funcional · 4=Fuerte · 5=Escalable\n\n━━━ REGLA ANTI-PLANTILLA — PROHIBICIÓN ABSOLUTA ━━━\nNUNCA abras un campo diagnostico, estado, impacto ni recomendacion con:\n- \"Con los datos disponibles\"\n- \"Según la información proporcionada\"\n- \"Basado en las respuestas\"\n- \"Esta empresa\"\n- \"El negocio\"\n- \"Se recomienda estructurar / alinear / optimizar / definir / mejorar\"\nEstas frases señalan que escribiste una plantilla genérica. Son el fracaso del diagnóstico.\n\nCORRECTO: \"RiBuzz no tiene claro cuánto le cuesta conseguir un nuevo cliente — y sin ese número no puede decidir cuánto invertir en crecer.\"\nINCORRECTO: \"Con los datos disponibles, RiBuzz tiene un CAC mayor al 50% del ticket.\"\n\n━━━ REGLA DE CONFIANZA Y SCORE MÁXIMO ━━━\n- confianza=\"baja\" o is_unknown=true → score máximo 2\n- confianza=\"media\" → score máximo 4\nCuando faltan datos: NO uses plantilla. Cruza con otras respuestas disponibles. Si mencionó canales pero no inversión, infiere dirección del problema desde los canales. Si hay texto libre, úsalo.\n\n━━━ REGLA DE EVIDENCIA — OBLIGATORIA ━━━\nEl campo evidencia DEBE ser cita o paráfrasis directa del formulario.\nSin evidencia real → score máximo 2, evidencia=\"Sin dato en formulario\".\nPero incluso con evidencia débil, diagnostico y recomendacion deben ser específicos para esta empresa.\n\n━━━ REGLA DE ESPECIFICIDAD — OBLIGATORIA ━━━\n- diagnostico incluye SIEMPRE el nombre real del negocio O un hecho concreto que solo aplica a esta empresa\n- estado: 3-5 palabras que describen la situación específica (NO el estado genérico de la escala)\n  ✗ \"Precio sin alcance definido\" (genérico)\n  ✓ \"Servicio sin resultado visible\" (específico a lo que declaró)\n- impacto: consecuencia concreta para SUS ingresos esta semana\n- recomendacion: acción específica ejecutable en 7 días, mencionando sus herramientas/canales declarados\n\n── DIMENSIÓN 1: PRODUCT-MARKET FIT ──\nPROBLEMA:     1=no articula problema real | 2=síntomas vagos | 3=problema claro, impacto vago | 4=problema + impacto concreto | 5=problema cuantificado + urgencia demostrable\nSOLUCIÓN:     1=no explica qué resuelve | 2=vaga sin diferenciador | 3=diferenciador genérico | 4=diferenciador verificable | 5=único + demostrable con casos reales\nICP:          1=no sabe quién compra | 2=perfil muy amplio | 3=perfil sin patrón de cierre | 4=perfil + sabe por qué cierra | 5=ICP declarado = cliente real que más compra\nCLIENTE_ACTUAL: 1=sin clientes | 2=clientes sin patrón | 3=tiene clientes sin denominador | 4=sabe qué perfil cierra mejor | 5=ICP = cliente real + referidos\n\n── DIMENSIÓN 2: MONETIZACIÓN ──\nOFERTA:         1=sin oferta definida | 2=precio sin alcance | 3=precio + alcance sin resultado | 4=precio + alcance + resultado | 5=productizada + resultado medible\nECUACION_VALOR: 1=no articula por qué vale lo que cuesta | 2=resultado vago | 3=resultado sin CTA | 4=resultado + CTA | 5=medible + prueba social + automatizado\nTICKET_MEDIO:   usa metrics.ticket_medio y ratio_cac_ticket. 1=no cubre operación | 2=sin margen | 3=margen mínimo | 4=margen para reinvertir | 5=alto + upsell + LTV claro\nRECURRENCIA:    1=venta única sin plan | 2=algunos vuelven sin sistema | 3=recompra espontánea | 4=proceso activo de recompra | 5=sistema documentado + métricas churn\n\n── DIMENSIÓN 3: ADQUISICIÓN ──\nCANAL_ADQUISICION: 1=sin canal claro | 2=solo referidos impredecibles | 3=canal identificado no escalable | 4=canal predecible + sabe cuánto invertir | 5=multi-canal medido\nCAC:               usa metrics.ratio_cac_ticket. 1=no sabe su CAC | 2=CAC > 50% ticket | 3=CAC 20-50% | 4=CAC < 20% + lo mide | 5=CAC optimizado y decreciente\nCONVERSION:        usa metrics.leads_perdidos. 1=no sabe tasa | 2=< 10% sin saber por qué | 3=10-25% con cuellos identificados | 4=> 25% con proceso | 5=> 40% documentado\n\n── DIMENSIÓN 4: OPERACIONES ──\nSEGUIMIENTO:         1=sin seguimiento | 2=cuando recuerda | 3=hace seguimiento sin documentar | 4=proceso documentado | 5=CRM + secuencia + tasa recuperación medida\nESCALAMIENTO:        1=100% fundador | 2=mayoría fundador | 3=algunos procesos documentados | 4=mitad documentados | 5=80%+ documentados y delegados\nCAPACIDAD_EJECUCION: 1=sin herramientas ni tiempo | 2=< 2h/semana | 3=básica | 4=adecuada para el plan | 5=stack completo + equipo + tiempo protegido\n\n━━━ POR CADA VARIABLE — 8 CAMPOS OBLIGATORIOS ━━━\n- score: int 1-5 respetando topes de confianza\n- estado: 3-5 palabras específicas de esta empresa (NO genéricas de la escala)\n- confianza: \"alta\"|\"media\"|\"baja\"\n- evidencia: cita textual o paráfrasis del formulario\n- diagnostico: 1 frase con el nombre real del negocio + hecho concreto. Sin plantilla.\n- impacto: qué le está costando este score en dinero, tiempo o clientes esta semana\n- brecha: la diferencia específica entre donde está y el siguiente nivel\n- recomendacion: 1 acción ejecutable en 7 días usando sus canales y herramientas reales\n\nDevuelve SOLO JSON válido:\n{\"scores\":{\"problema\":{\"score\":0,\"estado\":\"\",\"confianza\":\"\",\"evidencia\":\"\",\"diagnostico\":\"\",\"impacto\":\"\",\"brecha\":\"\",\"recomendacion\":\"\"},...(14 variables con misma estructura)}}"
             }
           ]
         }
       },
-      "id": "1eba00cf-13c5-40a4-9c15-7a79613d0c69",
+      "id": "c823d736-323f-4dd0-bcf1-136698ab86ce",
       "name": "Master Scorer (14 variables)1",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.4,
       "position": [
-        -13904,
-        1952
+        -18048,
+        2400
       ]
     },
     {
@@ -318,49 +324,52 @@
         },
         "builtInTools": {},
         "options": {
-          "maxTokens": 3500,
+          "maxTokens": 2200,
           "temperature": 0
         }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        -13904,
-        2160
+        -18048,
+        2608
       ],
-      "id": "0d0b39cf-cf4e-4b33-b320-d68772695199",
+      "id": "a35d374c-36d5-4e38-8e1d-72f5904167d5",
       "name": "OpenAI · Master Scorer1",
       "credentials": {
         "openAiApi": {
           "id": "AO805CTOSUGBSXdD",
           "name": "RibuZZ Final Automatización"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
         "jsCode": "const raw = $input.first().json.text || '';\nlet parsed;\ntry {\n  const match = raw.match(/\\{[\\s\\S]*\\}/);\n  if (!match) throw new Error('No JSON block found');\n  parsed = JSON.parse(match[0]);\n} catch(e) {\n  return [{ json: { scores: {}, score_global: 0, parse_error: e.message } }];\n}\nconst scores = parsed.scores || {};\nconst values = Object.values(scores).filter(v => typeof v?.score === 'number');\nconst score_global = values.length\n  ? Math.round((values.reduce((s, v) => s + v.score, 0) / values.length) * 10) / 10\n  : 0;\n// Pass p0 through from Prep Scorer Input\nconst p0 = $('Prep Scorer Input1').first().json.p0;\nreturn [{ json: { scores, score_global, p0 } }];"
       },
-      "id": "b8284e7b-db9a-4e13-97a5-4d38d03948dd",
+      "id": "ea640b3a-165e-4562-a038-12520480e696",
       "name": "Parse 14 Scores1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -13600,
-        1936
+        -17744,
+        2384
       ]
     },
     {
       "parameters": {
         "jsCode": "const result = $input.first().json;\nif (!result.scores || Object.keys(result.scores).length === 0) {\n  throw new Error('Scorer sub-workflow returned empty scores. Check OpenAI response.');\n}\nreturn [{ json: result }];"
       },
-      "id": "b3c84042-54ec-4dd0-b9cd-90f4ef4fdc62",
+      "id": "1aa209f5-3d0c-449b-af54-3e7ddd5ac7c7",
       "name": "Combine 14 Scores1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -13392,
-        1952
+        -17536,
+        2400
       ]
     },
     {
@@ -371,18 +380,18 @@
           "messageValues": [
             {
               "type": "HumanMessagePromptTemplate",
-              "message": "Eres el AGENTE 3 — TOP FUGAS SELECTOR de RiBuzz AI. Seleccionas las 3 fugas que más ingresos están costando HOY.\n\n━━━ REGLA CUANDO FALTAN DATOS ━━━\nNUNCA escribas \"No tenemos información sobre [variable]\" ni \"El primer paso es hacer una medición\".\nEn cambio, usa lo que SÍ sabes de otras respuestas para construir diagnóstico específico.\nEjemplo correcto: \"No sabemos exactamente cuánto te cuesta conseguir un cliente, pero sí sabemos que usas LinkedIn y tu ticket es $150.000 — sin ese número estás invirtiendo a ciegas.\"\n\n━━━ REGLA ANTI-CONSULTOR ━━━\nPROHIBIDO: \"alinear la propuesta\", \"estructurar el proceso\", \"optimizar el embudo\", \"definir una estrategia\", \"mejorar la comunicación del valor\"\nCORRECTO: \"Llevas 3 meses en TikTok pero no sabes cuántos de esos seguidores terminan comprando. Estás pagando con tiempo sin saber si convierte.\"\n\n━━━ REGLA ANTI-ADQUISICIÓN ━━━\nSi seguimiento o conversion tienen score ≤ 2 → priorizar por encima de canal_adquisicion o cac.\n\n━━━ PESOS ━━━\nImpacto en ingresos esta semana (40%) · Urgencia según nivel_urgencia (30%) · Facilidad de mejora (30%)\n\n━━━ RECOMENDACIÓN ━━━\n1 acción con verbo activo + canal/herramienta real que declararon + resultado medible en 7 días. Máximo 2 oraciones.\n\nDevuelve SOLO JSON:\n{\"top_fugas\":[{\"variable\":\"\",\"prioridad\":1,\"diagnostico\":\"\",\"evidencia_usada\":\"\",\"recomendacion\":\"\",\"datos_suficientes\":true},{\"variable\":\"\",\"prioridad\":2,\"diagnostico\":\"\",\"evidencia_usada\":\"\",\"recomendacion\":\"\",\"datos_suficientes\":true},{\"variable\":\"\",\"prioridad\":3,\"diagnostico\":\"\",\"evidencia_usada\":\"\",\"recomendacion\":\"\",\"datos_suficientes\":true}]}"
+              "message": "Eres el AGENTE 3 — TOP FUGAS SELECTOR de RiBuzz AI. Seleccionas las 3 fugas que más ingresos están costando a esta empresa HOY.\n\n━━━ REGLA CUANDO FALTAN DATOS — CRÍTICA ━━━\nSi evidencia=\"Sin dato en formulario\" o confianza=\"baja\":\nNUNCA escribas: \"No tenemos información sobre [variable]\" ni \"El primer paso es hacer una medición\".\nEn cambio, usa LO QUE SÍ SABES de otras respuestas para construir un diagnóstico específico:\n- ¿Qué declaró sobre sus canales? → úsalo para contextualizar el CAC\n- ¿Qué dijo sobre su proceso? → úsalo para contextualizar el seguimiento\n- ¿Cuál es su ticket declarado? → úsalo para calcular el costo del problema\nEl diagnóstico de una fuga con datos incompletos debe sonar como: \"No sabemos exactamente cuánto te cuesta conseguir un cliente, pero sí sabemos que usas [canal] y que tu ticket es [X] — y sin ese número estás invirtiendo a ciegas.\"\nLa honestidad sobre datos faltantes es bienvenida. La excusa genérica no lo es.\n\n━━━ REGLA ANTI-CONSULTOR — PROHIBIDO en diagnostico y recomendacion ━━━\n- \"alinear la propuesta con el mercado\"\n- \"estructurar el proceso comercial\"\n- \"optimizar el embudo\"\n- \"definir una estrategia\"\n- \"mejorar la comunicación del valor\"\n- \"generar visibilidad\"\n- cualquier frase que funcione para cualquier empresa sin cambiar el nombre del cliente\n\nCORRECTO: \"Llevas [X] con [canal] pero no sabes cuántos de esos contactos terminan comprando. Estás pagando por atención sin saber si convierte.\"\nINCORRECTO: \"El proceso de seguimiento requiere mayor estructura para maximizar las oportunidades de conversión.\"\n\n━━━ REGLA ANTI-ADQUISICIÓN ━━━\nSi seguimiento o conversion tienen score ≤ 2 → priorizar por encima de canal_adquisicion o cac.\nArreglar la fuga interna siempre impacta más en caja que traer más leads.\n\n━━━ PESOS DE SELECCIÓN ━━━\n- Impacto potencial en ingresos esta semana (40%)\n- Urgencia según nivel_urgencia de P0 (30%)\n- Facilidad de mejora dado tipo_empresa y capacidad declarada (30%)\nDesempate: score más bajo va primero.\n\n━━━ FORMATO DE RECOMENDACIÓN ━━━\nCada recomendacion debe tener:\n1. Una acción concreta con verbo activo\n2. Usando sus canales/herramientas reales (los que declaró en el formulario)\n3. Un resultado medible esperado en 7 días\nMáximo 2 oraciones.\n\nDevuelve SOLO JSON:\n{\"top_fugas\":[{\"variable\":\"\",\"prioridad\":1,\"diagnostico\":\"\",\"evidencia_usada\":\"\",\"recomendacion\":\"\",\"datos_suficientes\":true},{\"variable\":\"\",\"prioridad\":2,\"diagnostico\":\"\",\"evidencia_usada\":\"\",\"recomendacion\":\"\",\"datos_suficientes\":true},{\"variable\":\"\",\"prioridad\":3,\"diagnostico\":\"\",\"evidencia_usada\":\"\",\"recomendacion\":\"\",\"datos_suficientes\":true}]}"
             }
           ]
         }
       },
-      "id": "cc96ec5d-178a-4714-8e5c-d758a5446f63",
+      "id": "ddfa07a6-784d-476c-81fa-252c7064e9af",
       "name": "Agente 3: Top Fugas1",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.4,
       "position": [
-        -13216,
-        1952
+        -17360,
+        2400
       ]
     },
     {
@@ -395,36 +404,39 @@
         },
         "builtInTools": {},
         "options": {
-          "maxTokens": 800,
+          "maxTokens": 1200,
           "temperature": 0
         }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        -13168,
-        2128
+        -17312,
+        2576
       ],
-      "id": "f0452ad0-32dc-4cfe-a53d-8c302c46b2a0",
+      "id": "ace0a1e2-3e0b-4ef9-8d16-1ff67655c2de",
       "name": "OpenAI · Agente 8",
       "credentials": {
         "openAiApi": {
           "id": "AO805CTOSUGBSXdD",
           "name": "RibuZZ Final Automatización"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
         "jsCode": "const raw = $input.first().json.text;\nconst fugas = JSON.parse(raw.match(/\\{[\\s\\S]*\\}$/m)?.[0] || raw);\nconst ctx = $('Combine 14 Scores1').first().json;\nreturn [{ json: { ...ctx, top_fugas: fugas.top_fugas || [], p1: $('Prep Scorer Input1').first().json.p1, metrics: $('Prep Scorer Input1').first().json.metrics, company: $('Prep Scorer Input1').first().json.company } }];"
       },
-      "id": "10787734-7622-4093-9cc3-9ae0f7bf6eb9",
+      "id": "7bfa1354-73b6-4c8b-abbc-b3a67144dbec",
       "name": "Parse Fugas1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -12944,
-        1952
+        -17088,
+        2400
       ]
     },
     {
@@ -435,13 +447,13 @@
           "queryReplacement": "={{ [$('Validate Input').first().json.job_id] }}"
         }
       },
-      "id": "e2d0dafd-cf48-4a80-b36d-3346cc636f72",
+      "id": "ec08faa6-5e64-4c77-9bf8-06444116475a",
       "name": "Job → reporting1",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        -12816,
-        1952
+        -16960,
+        2400
       ],
       "credentials": {
         "postgres": {
@@ -454,13 +466,13 @@
       "parameters": {
         "jsCode": "// Restore context after Postgres UPDATE (Job → reporting returns {})\nconst ctx = $('Parse Fugas1').first().json;\nreturn [{ json: ctx }];"
       },
-      "id": "14429989-3d50-4f00-9fb5-848eb83e1e60",
+      "id": "df88d304-8494-41e2-9976-7f0af916f1c5",
       "name": "Prep Reporter Input1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -12640,
-        1952
+        -16784,
+        2400
       ]
     },
     {
@@ -471,18 +483,18 @@
           "messageValues": [
             {
               "type": "HumanMessagePromptTemplate",
-              "message": "Eres el AGENTE 4 — REPORTER de RiBuzz AI. Escribes el reporte que el fundador lee solo, sobre su propio negocio.\n\nSi el reporte está bien escrito, pensará: \"hubiera pagado mucho por esto.\"\n\n━━━ TONO ━━━\nSegunda persona singular. Frases cortas. Palabras del día a día. Socio que leyó todo y habla con honestidad.\nCuando faltan datos: NO te disculpes, NO digas \"el formulario fue limitado\". Trabaja con lo que tienes.\n\n━━━ REGLA DEL ESPEJO — OBLIGATORIA ━━━\nCada sección debe tener AL MENOS UNA de: cita textual del usuario · número concreto que compartió · situación específica que describió.\n\n━━━ PALABRAS PROHIBIDAS ━━━\n\"propuesta de valor\" · \"optimizar\" · \"implementar\" · \"tracción\" · \"capitalizar\" · \"estrategia\"\n\"potencial de expansión\" · \"diferenciación es clave\" · \"áreas de mejora\" · \"sinergias\" · \"apalancar\"\n\n━━━ RECONOCIMIENTO (120-150 palabras) ━━━\nAbre con nombre del negocio + hecho concreto + qué implica. NUNCA con \"Con base en lo que compartiste\".\nIncluye: etapa, sector, canales, ticket, clientes — los datos reales.\n\n━━━ SITUACION_ACTUAL (200-250 palabras) ━━━\nAbre con el hecho más concreto. Reto principal en palabras exactas del formulario. Consecuencia si no resuelve.\n\n━━━ FRACTURA_SILENCIOSA (120-150 palabras) ━━━\nNO puede ser eco de lo que declararon. Va un nivel más profundo: ¿por qué está pasando lo que declararon?\nQue al leerlo piense: \"eso es lo que realmente está pasando — nunca lo había visto así.\"\nAbre con \"Lo que describes sugiere...\" o \"El patrón que aparece...\"\n\n━━━ LECTURA_PRINCIPAL (máx 2 frases) ━━━\nEl insight más importante. Honesto, no motivacional. Genera reconocimiento, no entusiasmo vacío.\n\n━━━ SIGUIENTE_PASO (150-200 palabras) ━━━\n4 partes en prosa: QUÉ HACER · CON QUÉ/QUIÉN (canal que declararon) · CÓMO (pasos + texto del mensaje si aplica) · CÓMO SABER QUE FUNCIONÓ (número observable en 7 días)\n\n━━━ CONEXION_SUENO (80-100 palabras) ━━━\nSi sueño_declarado tiene texto → úsalo. Si dice \"no declarado\" → infiere del lenguaje, metas y contexto. NUNCA digas \"aunque no lo dijiste\".\nConecta con algo concreto que ya existe. Sin mencionar problemas ni a RiBuzz. Sin frases motivacionales.\n\nDevuelve SOLO JSON:\n{\"reconocimiento\":\"\",\"situacion_actual\":\"\",\"fractura_silenciosa\":\"\",\"lectura_principal\":\"\",\"variables_fuertes\":[],\"variables_debiles\":[],\"recomendacion_general\":\"\",\"siguiente_paso\":\"\",\"conexion_sueno\":\"\"}"
+              "message": "Eres el AGENTE 4 — REPORTER de RiBuzz AI. Escribes el reporte que el fundador va a leer solo, probablemente en la noche, sobre su propio negocio.\n\nTu trabajo no es resumir datos. Es hacer que esa persona sienta que alguien finalmente entiende lo que está viviendo — y que hay una salida clara.\n\nSi el reporte está bien escrito, el usuario pensará: \"hubiera pagado mucho por esto.\"\nSi está mal escrito, se sentirá como un formulario más.\n\n━━━ TONO Y VOZ ━━━\n- Segunda persona singular: \"tú\", \"tu negocio\", \"tu cliente\". NUNCA tercera persona.\n- Frases cortas. Párrafos de máximo 3 oraciones. Palabras del día a día.\n- Tono: socio que leyó todo, te conoce, y te habla con honestidad desde el respeto.\n- Cuando faltan datos: NO te disculpes, NO digas \"el formulario fue limitado\". Trabaja con lo que tienes y sé directo sobre lo que no puedes medir todavía.\n\n━━━ REGLA DEL ESPEJO — OBLIGATORIA ━━━\nCada sección del reporte debe contener AL MENOS UNA de estas:\n- Una frase o dato que el usuario dijo textualmente (entre comillas si es literal)\n- Un número concreto que compartió (ticket, leads, clientes, canal)\n- Una situación específica que describió (la venta que ganó, la que perdió, cómo llegan los clientes)\nSin esto, el reporte se siente genérico. Con esto, se siente como una radiografía.\n\n━━━ PALABRAS COMPLETAMENTE PROHIBIDAS ━━━\n\"propuesta de valor\" · \"optimizar\" · \"implementar\" · \"tracción\" · \"validar\" · \"capitalizar\"\n\"estrategia\" · \"potencial de expansión\" · \"diferenciación es clave\" · \"áreas de mejora\"\n\"de manera integral\" · \"sinergias\" · \"apalancar\" · \"robustecer\" · \"fortalecer\"\n\"al trabajar juntos\" · \"en conjunto\" · \"estructurar\" · \"generar visibilidad\"\n\n━━━ RECONOCIMIENTO (120-150 palabras) ━━━\nAbre con el nombre del negocio y una oración que refleje lo que hacen en sus propias palabras — no en lenguaje de consultor.\nLuego: 2-3 hechos concretos del formulario (etapa, sector, canales, ticket, clientes). Ni más ni menos.\nCierra con una oración que diga qué vas a hacer con esa información.\n\nNUNCA abras con:\n- \"Con base en lo que compartiste...\"\n- \"Gracias por completar...\"\n- \"Hemos analizado tu información...\"\nLo que sí funciona: empezar con el nombre del negocio + un hecho + lo que implica.\n\nEjemplo de nivel correcto:\n\"[Negocio] lleva [X tiempo] ayudando a [cliente] a [resultado]. Usas [canal], tu ticket ronda [X], y llevas [etapa]. Con eso, este es el primer mapa real de lo que está pasando en tu motor comercial.\"\n\n━━━ SITUACION_ACTUAL (200-250 palabras) ━━━\n- Abre con el hecho más concreto disponible — número, canal, situación específica\n- El reto principal en las palabras exactas que usaron (entre comillas si es posible)\n- Cómo se ve eso en el día a día según lo que declararon\n- Si hay consecuencia_si_no_resuelve → cítala o parafraséala directamente\n- Cierra con lo que implica para el negocio en términos concretos, no abstractos\n\n━━━ FRACTURA_SILENCIOSA (120-150 palabras) ━━━\nEsto es lo más importante del reporte. Es el diagnóstico que el fundador no había puesto en palabras.\n\nREGLA: NO puede ser un eco de lo que ya declararon como problema. Tiene que ir un nivel más profundo.\nPregúntate: \"¿Por qué está pasando lo que declararon?\" — esa respuesta es la fractura.\n\nQue al leerlo piense: \"eso es lo que realmente está pasando — nunca lo había visto así.\"\n\nAbre con \"Lo que describes sugiere...\" o \"El patrón que aparece en lo que compartiste...\"\n\nEjemplos de nivel correcto:\n- \"Lo que describes sugiere que el problema no es que no sepas vender — es que tu proceso de venta depende de que el cliente ya esté muy convencido antes de llegar a ti. Cualquiera con dudas se va.\"\n- \"El patrón que aparece es que estás invirtiendo tiempo en canales que traen visibilidad, no clientes. Y como no mides la diferencia, cada mes repites lo mismo esperando un resultado distinto.\"\n\n━━━ LECTURA_PRINCIPAL (máximo 2 frases) ━━━\nEl insight más importante. Lo que resume todo.\nQue suene como algo que el fundador sabía pero no había articulado.\nHonesto, no motivacional. Genera reconocimiento, no entusiasmo vacío.\nNUNCA menciones scores ni porcentajes.\n\n━━━ VARIABLES_FUERTES ━━━\nMáximo 3. Solo score 4-5 Y confianza alta o media. Si no hay ninguna → [].\n\n━━━ VARIABLES_DEBILES ━━━\nMáximo 3. Las de scores más bajos con evidencia concreta.\n\n━━━ RECOMENDACION_GENERAL (120-150 palabras) ━━━\nEn prosa fluida, sin subtítulos ni listas:\n1. LA DIRECCIÓN: el foco que genera más ingresos esta semana dado lo que declararon\n2. LO QUE NO HACER AHORA: la acción que parece urgente pero no mueve la caja esta semana\nConcreto. Sin fórmulas de consultor.\n\n━━━ SIGUIENTE_PASO (150-200 palabras) ━━━\nLas 4 partes en este orden — sin subtítulos, en prosa:\n1. QUÉ HACER: acción específica para los próximos 7 días\n2. CON QUÉ / CON QUIÉN: el canal o herramienta que mencionó tener (WhatsApp, LinkedIn, su lista, lo que sea que usó)\n3. CÓMO: los pasos exactos que haría mañana — incluye el texto del mensaje si aplica\n4. CÓMO SABER QUE FUNCIONÓ: un número o hecho observable al final de la semana\n\nEl texto del mensaje que incluyas debe poder copiarse y enviarse sin editarlo (salvo [nombre], [servicio], [X]).\n\n━━━ CONEXION_SUENO (80-100 palabras) ━━━\nSi p0.sueño_declarado tiene texto real → úsalo textualmente en la apertura.\nSi dice \"no declarado\" → infiere el sueño desde el lenguaje: lo que mencionó construir, para quién, qué quiere lograr en 90 días, qué lo motivó a hacer el diagnóstico. Escribe como si fuera declarado — no digas \"aunque no lo dijiste\".\nConecta ese sueño con algo concreto que YA existe hoy en el negocio.\nNUNCA menciones el problema, la fractura, ni a RiBuzz.\nTermina cuando hiciste la conexión. Sin frases motivacionales.\n\nDevuelve SOLO JSON válido:\n{\"reconocimiento\":\"\",\"situacion_actual\":\"\",\"fractura_silenciosa\":\"\",\"lectura_principal\":\"\",\"variables_fuertes\":[],\"variables_debiles\":[],\"recomendacion_general\":\"\",\"siguiente_paso\":\"\",\"conexion_sueno\":\"\"}"
             }
           ]
         }
       },
-      "id": "978915a7-a819-4910-9426-9634096b5d30",
+      "id": "49820f51-cf0e-4ac9-965a-493ddd6d7b39",
       "name": "Agente 4: Reporter1",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.4,
       "position": [
-        -12512,
-        1952
+        -16656,
+        2400
       ]
     },
     {
@@ -495,24 +507,27 @@
         },
         "builtInTools": {},
         "options": {
-          "maxTokens": 1500,
-          "temperature": 0
+          "maxTokens": 2400,
+          "temperature": 0.4
         }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        -12512,
-        2128
+        -16656,
+        2576
       ],
-      "id": "67aa9695-0218-4655-b1f3-2123f749d101",
+      "id": "bccfac02-f80d-4f39-a666-e213a66afd9e",
       "name": "OpenAI · Agente 9",
       "credentials": {
         "openAiApi": {
           "id": "AO805CTOSUGBSXdD",
           "name": "RibuZZ Final Automatización"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -522,18 +537,18 @@
           "messageValues": [
             {
               "type": "HumanMessagePromptTemplate",
-              "message": "Eres el AGENTE 5 — PLAYBOOK STRATEGIST de RiBuzz AI. Plan ejecutable para los próximos 30 días. Tan concreto que el fundador puede empezar mañana.\n\n━━━ SECUENCIA OBLIGATORIA ━━━\n1. Cierre y reactivación (contactos sin cerrar, clientes que pararon)\n2. Proceso (corregir lo que sigue generando pérdidas)\n3. Medición (solo cuando algo funciona)\n\n━━━ ACCIONES PROHIBIDAS COMO PRIMERA ACCIÓN ━━━\n\"calcular el CAC\" · \"medir la tasa\" · \"analizar el embudo\" · \"diseñar la propuesta\" · \"invertir en publicidad\" · \"hacer contenido\"\n\n━━━ REGLAS ━━━\n- Máximo 3 acciones. Sin contratar nadie. Sin inversión adicional.\n- campo \"como\": pasos ejecutables mañana. Si hay mensaje que enviar → incluir texto exacto listo para copiar.\n- campo \"metrica\": número medible en 7 días.\n- campo \"resultado_esperado\": lo concreto que verán si funciona.\n\n━━━ mensaje_base ━━━\nPrimer mensaje listo para copiar y enviar HOY. Corto, humano, sin vender. Para el canal que declararon.\nMáximo 3 líneas. Abre conversación, no cierra venta.\nCORRECTO: \"Hola [nombre], hace un tiempo hablamos de [tema]. ¿Pudiste avanzar o sigue siendo algo que necesitas resolver?\"\nINCORRECTO: \"Un mensaje que reactive el interés comunicando el valor diferencial.\"\n\n━━━ plan_30_dias ━━━\nCada semana: verbo activo + resultado concreto observable al final de esa semana.\n\nDevuelve SOLO JSON:\n{\"cliente_prioritario\":\"\",\"oferta_recomendada\":\"\",\"canal_sugerido\":\"\",\"mensaje_base\":\"\",\"acciones\":[{\"titulo\":\"\",\"fuga_atacada\":\"\",\"que_corregir\":\"\",\"por_que\":\"\",\"como\":\"\",\"metrica\":\"\",\"resultado_esperado\":\"\",\"tiempo_estimado\":\"\",\"prioridad\":1}],\"metricas_a_medir\":[],\"plan_30_dias\":{\"semana_1\":\"\",\"semana_2\":\"\",\"semana_3\":\"\",\"semana_4\":\"\"}}"
+              "message": "Eres el AGENTE 5 — PLAYBOOK STRATEGIST de RiBuzz AI. Diseñas el plan de los próximos 30 días. Tiene que ser tan concreto que el fundador pueda empezar mañana sin pedirle nada más a nadie.\n\nSi está bien hecho, lo imprimirá y lo pondrá en su escritorio.\nSi está mal hecho, lo cerrará después de leerlo.\n\n━━━ REGLA DE SECUENCIA — ORDEN OBLIGATORIO ━━━\n1. PRIMERO cierre y reactivación: contactos sin cerrar, interesados sin seguimiento, clientes que pararon\n2. SEGUNDO proceso: corregir lo que evita seguir perdiendo oportunidades\n3. TERCERO medición: solo después de que algo esté funcionando\n\n━━━ ACCIONES PROHIBIDAS COMO PRIMERA ACCIÓN ━━━\n\"calcular el CAC\" · \"medir la tasa de conversión\" · \"analizar el embudo\"\n\"crear un sistema de\" · \"diseñar la propuesta de valor\" · \"definir el ICP\"\n\"invertir en publicidad\" · \"hacer contenido\" · \"lanzar una campaña\"\n\n━━━ REGLAS DE CADA ACCIÓN ━━━\n1. Máximo 3 acciones — una por fuga principal\n2. Sin contratar nadie. Sin inversión adicional.\n3. Campo \"como\": no consejos — pasos ejecutables mañana. Si hay un mensaje que enviar, incluye el texto exacto listo para copiar.\n4. Campo \"metrica\": un número o hecho que pueden medir en 7 días, no en meses\n5. Campo \"resultado_esperado\": lo que verán si funciona — concreto, no aspiracional\n\n━━━ CAMPO mensaje_base ━━━\nEste es el primer mensaje que deben enviar. Listo para copiar y enviar hoy.\nQue sea corto, humano, sin vender. Para WhatsApp, LinkedIn o email según el canal que declararon.\nMáximo 3 líneas. Que abra conversación, no que cierre venta.\nEjemplo correcto: \"Hola [nombre], hace un tiempo hablamos de [tema]. ¿Pudiste avanzar con eso o sigue siendo algo que quieres resolver?\"\nEjemplo incorrecto: \"Un mensaje personalizado que reactive el interés del prospecto comunicando el valor diferencial.\"\n\n━━━ CAMPO plan_30_dias ━━━\nCada semana: 1 oración con verbo activo + resultado concreto observable al final de esa semana.\nNO: \"Revisar resultados y ajustar estrategia.\"\nSÍ: \"Enviar el mensaje de reactivación a 10 contactos y documentar las 3 razones más comunes por las que no compraron.\"\n\n━━━ DIFERENCIACIÓN POR TIPO ━━━\n- \"temprana\": contacto directo, primera venta real, validar que alguien paga\n- \"crecimiento\": reactivar base existente, cerrar interesados activos, mejorar conversión sin más leads\n- \"transformacion\": identificar el cuello de botella operativo más caro, documentar el proceso que más depende de una persona\n\n━━━ VALIDACIÓN FINAL ANTES DE RESPONDER ━━━\n¿Puede el fundador ejecutar esto con el tiempo y herramientas que declaró tener? Si no → simplifica hasta que sí pueda.\n¿Depende de información que no tiene? → primer paso = conseguir esa información de forma específica.\n¿Requiere presupuesto? → reformula sin inversión.\n\nDevuelve SOLO JSON:\n{\"cliente_prioritario\":\"\",\"oferta_recomendada\":\"\",\"canal_sugerido\":\"\",\"mensaje_base\":\"\",\"acciones\":[{\"titulo\":\"\",\"fuga_atacada\":\"\",\"que_corregir\":\"\",\"por_que\":\"\",\"como\":\"\",\"metrica\":\"\",\"resultado_esperado\":\"\",\"tiempo_estimado\":\"\",\"prioridad\":1}],\"metricas_a_medir\":[],\"plan_30_dias\":{\"semana_1\":\"\",\"semana_2\":\"\",\"semana_3\":\"\",\"semana_4\":\"\"}}"
             }
           ]
         }
       },
-      "id": "4b789877-5853-4b89-b387-dc1b63dbb0d7",
+      "id": "e56c2f26-a13c-4048-aaca-06d5fd6ebc27",
       "name": "Agente 5: Playbook1",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.4,
       "position": [
-        -12288,
-        1952
+        -16432,
+        2400
       ]
     },
     {
@@ -546,24 +561,27 @@
         },
         "builtInTools": {},
         "options": {
-          "maxTokens": 1500,
-          "temperature": 0
+          "maxTokens": 2400,
+          "temperature": 0.2
         }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        -12288,
-        2128
+        -16432,
+        2576
       ],
-      "id": "fbf012a7-14db-4037-9a95-8a116450149e",
+      "id": "a6309a03-7a74-4e2a-ae09-9c07ccebce5e",
       "name": "OpenAI · Agente 10",
       "credentials": {
         "openAiApi": {
           "id": "AO805CTOSUGBSXdD",
           "name": "RibuZZ Final Automatización"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -578,55 +596,58 @@
           ]
         }
       },
-      "id": "c9fa845a-2381-42fe-a4be-99e40ae5ec74",
+      "id": "d411b257-6849-4429-9575-003fa6a16089",
       "name": "Agente 6: Lead Classifier1",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.4,
       "position": [
-        -12064,
-        1952
+        -16208,
+        2400
       ]
     },
     {
       "parameters": {
         "model": {
           "__rl": true,
-          "value": "gpt-4o",
+          "value": "gpt-4o-mini",
           "mode": "list",
-          "cachedResultName": "gpt-4o"
+          "cachedResultName": "gpt-4o-mini"
         },
         "builtInTools": {},
         "options": {
-          "maxTokens": 600,
+          "maxTokens": 900,
           "temperature": 0
         }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        -12064,
-        2128
+        -16208,
+        2576
       ],
-      "id": "9c51faa5-cc8c-4caa-9343-51f55a8d6f61",
+      "id": "f67581bc-955a-4614-ace3-d36bd9db4386",
       "name": "OpenAI · Agente 11",
       "credentials": {
         "openAiApi": {
           "id": "AO805CTOSUGBSXdD",
           "name": "RibuZZ Final Automatización"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
         "jsCode": "const parse = (s) => { try { return JSON.parse(s.match(/\\{[\\s\\S]*\\}$/m)?.[0] || s); } catch(e) { return {}; } };\nconst ctx = $('Parse Fugas1').first().json;\nreturn [{ json: {\n  scores: ctx.scores,\n  score_global: ctx.score_global,\n  top_fugas: ctx.top_fugas,\n  p0: ctx.p0,\n  reporter: parse($('Agente 4: Reporter1').first().json.text),\n  playbook: parse($('Agente 5: Playbook1').first().json.text),\n  classification: parse($('Agente 6: Lead Classifier1').first().json.text)\n}}];"
       },
-      "id": "ed4e807f-a1af-4cfe-b9dd-28c69ccb7800",
+      "id": "6521c1f2-21d8-4bf4-a4c8-dc3fed28f994",
       "name": "Prep Agent 7 Input1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -11808,
-        1952
+        -15952,
+        2400
       ]
     },
     {
@@ -642,55 +663,58 @@
           ]
         }
       },
-      "id": "aff06bfa-458e-48dc-8159-37edf0c474cd",
+      "id": "96b5d41a-e18e-4bbd-80d1-2944e8c8399c",
       "name": "Agente 7: Quality Reviewer1",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.4,
       "position": [
-        -11680,
-        1952
+        -15824,
+        2400
       ]
     },
     {
       "parameters": {
         "model": {
           "__rl": true,
-          "value": "gpt-4o",
+          "value": "gpt-4o-mini",
           "mode": "list",
-          "cachedResultName": "gpt-4o"
+          "cachedResultName": "gpt-4o-mini"
         },
         "builtInTools": {},
         "options": {
-          "maxTokens": 800,
+          "maxTokens": 900,
           "temperature": 0
         }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        -11680,
-        2128
+        -15824,
+        2576
       ],
-      "id": "ff1ae5dc-047f-4211-9943-d34a82266f9a",
+      "id": "bbac1dd1-1e25-4706-a2e1-1058116f2a4e",
       "name": "OpenAI · Agente 12",
       "credentials": {
         "openAiApi": {
           "id": "AO805CTOSUGBSXdD",
           "name": "RibuZZ Final Automatización"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
         "jsCode": "const ctx = $('Parse Fugas1').first().json;\nconst diagId = $('Validate Input').first().json.diagnostic_id;\nconst jobId = $('Validate Input').first().json.job_id;\nconst parse = (s) => JSON.parse(s.match(/\\{[\\s\\S]*\\}$/m)?.[0] || s);\nconst reporter       = parse($('Agente 4: Reporter1').first().json.text);\nconst playbook       = parse($('Agente 5: Playbook1').first().json.text);\nconst classification = parse($('Agente 6: Lead Classifier1').first().json.text);\nconst review         = parse($('Agente 7: Quality Reviewer1').first().json.text);\nreturn [{ json: { diagnostic_id: diagId, job_id: jobId, ctx, reporter, playbook, classification, review } }];"
       },
-      "id": "c4e2f26f-3178-4b4e-add7-2801679bc1c0",
+      "id": "24d77aa6-b316-4200-b7f4-a5f8b0d66b4b",
       "name": "Prep Persistence1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -11408,
-        1952
+        -15552,
+        2400
       ]
     },
     {
@@ -700,10 +724,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -11264,
-        1712
+        -15408,
+        2160
       ],
-      "id": "eeaafe1d-e5a3-4276-8077-6f2a7d0e6819",
+      "id": "d3ee03c4-e1b1-4360-9d07-6dc284dcbe3c",
       "name": "Code in JavaScript4"
     },
     {
@@ -714,13 +738,13 @@
           "queryReplacement": "="
         }
       },
-      "id": "41d60da0-3e32-4e22-8c46-1586c6eede28",
+      "id": "e07c706a-6deb-4868-bf30-3b94ce39b97a",
       "name": "Save Scores1",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        -11072,
-        1456
+        -15216,
+        1904
       ],
       "credentials": {
         "postgres": {
@@ -736,10 +760,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -10928,
-        1456
+        -15072,
+        1904
       ],
-      "id": "e93c02c2-09d4-4977-84a0-cd088fb74036",
+      "id": "9985501c-4bb2-447f-a9d4-4a454d44cc74",
       "name": "Code in JavaScript5"
     },
     {
@@ -750,13 +774,13 @@
           "queryReplacement": "="
         }
       },
-      "id": "e1b08dc6-0f13-446c-922c-a4375ad46a1a",
+      "id": "5d37d1e7-f654-41e5-b6bd-31ce2c416a43",
       "name": "Save Report1",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        -10736,
-        1456
+        -14880,
+        1904
       ],
       "credentials": {
         "postgres": {
@@ -772,10 +796,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -10944,
-        1760
+        -15088,
+        2208
       ],
-      "id": "eb53ecb5-ce8a-4e07-b639-6f187d287e17",
+      "id": "49e55554-b21f-4d0c-abb8-25e75db5cb5e",
       "name": "Code in JavaScript6"
     },
     {
@@ -786,13 +810,13 @@
           "queryReplacement": "="
         }
       },
-      "id": "bda21087-9ed7-4004-879f-910a2e0a9e7d",
+      "id": "805cc942-b95a-4f87-9363-fad7f7119371",
       "name": "Save Playbook1",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        -10768,
-        1760
+        -14912,
+        2208
       ],
       "credentials": {
         "postgres": {
@@ -808,10 +832,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -11152,
-        1984
+        -15296,
+        2432
       ],
-      "id": "3ca2f1d9-8bcf-477c-bd8c-138b7e9eb48e",
+      "id": "7003d8e0-8762-4097-b79e-46c58a7aef1b",
       "name": "Code in JavaScript7"
     },
     {
@@ -822,13 +846,13 @@
           "queryReplacement": "="
         }
       },
-      "id": "d26444ff-7889-4021-a985-10934a27958b",
+      "id": "0ccd265f-54c9-4b71-8e99-c3c816f87cdc",
       "name": "Save Lead1",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        -10960,
-        1984
+        -15104,
+        2432
       ],
       "credentials": {
         "postgres": {
@@ -845,13 +869,13 @@
           "queryReplacement": "={{ [$('Prep Persistence1').first().json.diagnostic_id] }}"
         }
       },
-      "id": "ede6b2f6-6cc9-4746-8e77-714b71a147c6",
+      "id": "4d354881-1899-4e4f-b90f-e01863dc23d7",
       "name": "Mark Diagnostic Completed1",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        -10752,
-        1984
+        -14896,
+        2432
       ],
       "credentials": {
         "postgres": {
@@ -868,13 +892,13 @@
           "queryReplacement": "={{ [$('Prep Persistence1').first().json.job_id] }}"
         }
       },
-      "id": "40474104-5b81-4cdd-94ea-99679429229c",
+      "id": "54df6d99-f216-473e-8ef9-2d7e57f0c29c",
       "name": "Job → completed1",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        -10528,
-        1984
+        -14672,
+        2432
       ],
       "credentials": {
         "postgres": {
@@ -889,13 +913,13 @@
         "responseBody": "={{ JSON.stringify({ ok: true, diagnostic_id: $('Prep Persistence1').first().json.diagnostic_id, score_global: $('Prep Persistence1').first().json.ctx.score_global, review_ok: $('Prep Persistence1').first().json.review.ok }) }}",
         "options": {}
       },
-      "id": "fec219df-d705-45a1-ab10-55fe7149cc02",
+      "id": "5207c267-0dfa-41f0-a98a-41fc63c9fad6",
       "name": "Respond ",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        -10304,
-        1984
+        -14448,
+        2432
       ]
     },
     {
@@ -906,18 +930,18 @@
           "messageValues": [
             {
               "type": "HumanMessagePromptTemplate",
-              "message": "Eres el AGENTE EXTRACTOR DE MÉTRICAS de RiBuzz AI.\n\nTu única función es leer TODAS las respuestas del formulario de diagnóstico y extraer o inferir los valores numéricos necesarios para calcular métricas comerciales. NO diagnosticas ni recomiendas.\n\nRECIBIRÁS: Un array JSON con las respuestas. Cada objeto tiene: variable_bd, question_text, answer_text, is_unknown.\n\nVALORES A EXTRAER:\n1. ventas_mes (COP): Busca en meta_3m, venta_ganada, negocio_descripcion. Si no: ticket×clientes si ambos disponibles. Si no: null.\n2. clientes_actuales (número): Frases como 'tengo X clientes'. Si no: null.\n3. clientes_nuevos_mes (número): Usa ventas_30d. Mapea: '0'→0,'1_5'→3,'6_15'→10,'16_30'→23,'mas_30'→40,'no_se'→null.\n4. inversion_publicidad_mes (COP): 'invierto X en ads', 'pauta', 'presupuesto marketing'. Si no: null.\n5. leads_mes (número): Usa interesados_30d. Mapea: 'no_se'→null,'menos_10'→5,'10_30'→20,'31_100'→65,'mas_100'→120.\n6. ticket_promedio_cop (COP): Usa ticket_promedio. '150.000'=150000, '150,000'=150000, rangos→promedio, '500k'=500000.\n7. tasa_conversion_pct (0-100): (clientes_nuevos_mes/leads_mes)*100 si ambos disponibles. Si no: null.\n\nREGLAS: Devuelve SOLO JSON válido. Usa null (NO 0) si no hay dato. notas es obligatorio.\n\n{\"ventas_mes\":null,\"clientes_actuales\":null,\"clientes_nuevos_mes\":null,\"inversion_publicidad_mes\":null,\"leads_mes\":null,\"ticket_promedio_cop\":null,\"tasa_conversion_pct\":null,\"notas\":\"\"}"
+              "message": "Eres el AGENTE EXTRACTOR DE MÉTRICAS de RiBuzz AI.\\n\\nTu única función es leer TODAS las respuestas del formulario de diagnóstico y extraer o inferir los valores numéricos necesarios para calcular métricas comerciales. NO diagnosticas ni recomiendas.\\n\\nRECIBIRÁS: Un array JSON con las respuestas del formulario. Cada objeto tiene: variable_bd, question_text, answer_text, is_unknown.\\n\\nVALORES A EXTRAER — busca en TODOS los campos de texto libre:\\n\\n1. ventas_mes (COP): Ingresos/ventas totales del último mes. Busca en: meta_3m, venta_ganada, negocio_descripcion. Si no hay dato explícito, calcula ticket_promedio × clientes_actuales si ambos están disponibles. Si no es posible: null.\\n\\n2. clientes_actuales (número): Total de clientes activos hoy. Busca frases como 'tengo X clientes', 'atiendo X empresas'. Si no hay dato: null.\\n\\n3. clientes_nuevos_mes (número): Nuevos clientes en los últimos 30 días. Usa ventas_30d directamente. Mapea: '0'→0, '1_5'→3, '6_15'→10, '16_30'→23, 'mas_30'→40, 'no_se'→null.\\n\\n4. inversion_publicidad_mes (COP): Inversión mensual en publicidad/ads/marketing. Busca en cualquier campo: 'invierto X en ads', 'pauta', 'presupuesto de marketing'. Si no aparece: null.\\n\\n5. leads_mes (número): Personas que preguntaron en los últimos 30 días. Usa interesados_30d. Mapea: 'no_se'→null, 'menos_10'→5, '10_30'→20, '31_100'→65, 'mas_100'→120.\\n\\n6. ticket_promedio_cop (COP): Precio promedio por cliente/compra. Usa campo ticket_promedio. REGLAS DE PARSEO:\\n- Notación colombiana: '150.000'=150000, '1.500.000'=1500000\\n- Notación americana: '150,000'=150000\\n- Rangos: '500.000 a 800.000' → promedio=650000\\n- Sufijos: '500k'=500000, '1.5m'=1500000\\n- '$150.000'→150000\\n\\n7. tasa_conversion_pct (0-100): Si tienes leads_mes y clientes_nuevos_mes, calcula (clientes_nuevos_mes / leads_mes) * 100. Si hay valor explícito en las respuestas, úsalo. Si no es calculable: null.\\n\\nREGLAS CRÍTICAS:\\n- Devuelve SOLO JSON válido, sin markdown, sin texto antes o después\\n- Usa null (NO 0) cuando un dato genuinamente no está disponible\\n- Para rangos de precios, usa el promedio entre los extremos\\n- El campo notas es obligatorio: 1 línea explicando qué datos encontraste y cuáles son null\\n\\nFORMATO DE SALIDA:\\n{\\\"ventas_mes\\\":number|null,\\\"clientes_actuales\\\":number|null,\\\"clientes_nuevos_mes\\\":number|null,\\\"inversion_publicidad_mes\\\":number|null,\\\"leads_mes\\\":number|null,\\\"ticket_promedio_cop\\\":number|null,\\\"tasa_conversion_pct\\\":number|null,\\\"notas\\\":\\\"string\\\"}"
             }
           ]
         }
       },
-      "id": "extr0000-0000-0000-0000-000000000001",
+      "id": "488ae5f3-f931-4f26-8a0a-cd803db90d19",
       "name": "Agente Extractor: Métricas",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.4,
       "position": [
-        -15648,
-        2250
+        -20128,
+        2416
       ]
     },
     {
@@ -930,40 +954,80 @@
         },
         "builtInTools": {},
         "options": {
-          "maxTokens": 500,
+          "maxTokens": 400,
           "temperature": 0
         }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        -15648,
-        2450
+        -20144,
+        2688
       ],
-      "id": "extr0000-0000-0000-0000-000000000002",
+      "id": "3b5fcc07-5f5f-4e03-b351-8b4082eb7bd2",
       "name": "OpenAI · Extractor",
       "credentials": {
         "openAiApi": {
           "id": "AO805CTOSUGBSXdD",
           "name": "RibuZZ Final Automatización"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
         "jsCode": "const raw = $input.first().json.text;\nconst extracted = JSON.parse(raw.match(/\\{[\\s\\S]*\\}/m)?.[0] || raw);\nconst answers = $('Fetch 40 Answers1').all().map(i => i.json);\nreturn [{ json: { answers, metricas_extraidas: extracted } }];"
       },
-      "id": "extr0000-0000-0000-0000-000000000003",
+      "id": "979acde7-2abe-4f7e-bd11-7d66ff9966d3",
       "name": "Parse Extractor",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -15424,
-        2250
+        -19792,
+        2416
       ]
     }
   ],
-  "pinData": {},
+  "pinData": {
+    "Webhook (entry)": [
+      {
+        "json": {
+          "headers": {
+            "host": "n8n.srv1097452.hstgr.cloud",
+            "user-agent": "node",
+            "content-length": "104",
+            "accept": "*/*",
+            "accept-encoding": "br, gzip, deflate",
+            "accept-language": "*",
+            "content-type": "application/json",
+            "sec-fetch-mode": "cors",
+            "x-forwarded-for": "54.82.66.229",
+            "x-forwarded-host": "n8n.srv1097452.hstgr.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "997a3681f581",
+            "x-invocation-id": "iad1::c4djt-1778769410286-8daa2361ba52",
+            "x-real-ip": "54.82.66.229",
+            "x-ribuzz-secret": "Preseed2026+*",
+            "x-vercel-id": "iad1::c4djt-1778769410286-8daa2361ba52"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "job_id": "475a099e-d5fe-4363-947b-78b8fbb9f1c3",
+            "diagnostic_id": "ac0b6e22-4094-4075-b28c-c9d3991d554d"
+          },
+          "webhookUrl": "https://n8n.srv1097452.hstgr.cloud/webhook/ribuzz-diagnostic",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
   "connections": {
     "Webhook (entry)": {
       "main": [
@@ -1480,7 +1544,7 @@
     "timezone": "America/Bogota",
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "46e2944c-446c-4d84-bc29-5383ac73fd61",
+  "versionId": "9b3d8d8e-a161-401b-828a-4c0b4e0a4cce",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "d1ac319a3f904ba2c0145e65657c3d7257c79d701098eff14fc8f47ec5485bb4"

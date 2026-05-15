@@ -4,6 +4,8 @@ import { createServer, hasSupabaseServerEnv } from "@/lib/supabase/server";
 import { ScoreCard } from "@/components/results/ScoreCard";
 import { FugasCard } from "@/components/results/FugasCard";
 import { PlaybookAccordion } from "@/components/results/PlaybookAccordion";
+import { FugaSelector } from "@/components/results/FugaSelector";
+import { ShareButton } from "@/components/results/ShareButton";
 import { formatCOP } from "@/lib/utils";
 import type {
   TopFuga,
@@ -110,7 +112,7 @@ export default async function ResultsPage({
   return (
     <main className="ribuzz-shell mx-auto max-w-4xl px-6 py-10">
 
-    {/* ── Header ── */}
+      {/* ── Header ── */}
       <header className="mb-8">
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Link href="/profile" className="text-sm font-semibold text-ribuzz-pink hover:text-ribuzz-primary">
@@ -122,24 +124,24 @@ export default async function ResultsPage({
         </div>
         <p className="text-xs uppercase tracking-widest text-ribuzz-pink">Diagnóstico RiBuzz</p>
         <h1 className="mt-1 text-3xl font-bold">{company?.name ?? "Tu empresa"}</h1>
-        <p className="mt-2 text-ribuzz-muted">{report.lectura_principal}</p>
+
+        {/* ── Score global ── */}
+        <div className="glow-card mt-6 rounded-3xl p-6">
+          <p className="text-sm text-ribuzz-muted">Score global</p>
+          <p className="text-4xl font-bold text-ribuzz-primary">
+            {Number(score.score_global ?? 0).toFixed(1)}
+            <span className="text-base font-normal text-ribuzz-muted"> / 5</span>
+          </p>
+          <div className="mt-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
+            <Stat label="Ticket medio" value={metrics.ticket_medio ? formatCOP(metrics.ticket_medio) : "—"} />
+            <Stat label="CAC" value={metrics.cac ? formatCOP(metrics.cac) : "—"} />
+            <Stat label="LTV est." value={metrics.ltv ? formatCOP(metrics.ltv) : "—"} />
+            <Stat label="Salud comercial" value={metrics.salud_comercial ? `${metrics.salud_comercial}/100` : "—"} />
+          </div>
+        </div>
       </header>
 
-      {/* ── Score global ── */}
-      <section className="glow-card mb-8 rounded-3xl p-6">
-        <p className="text-sm text-ribuzz-muted">Score global</p>
-        <p className="text-4xl font-bold text-ribuzz-primary">
-          {Number(score.score_global ?? 0).toFixed(1)}
-          <span className="text-base font-normal text-ribuzz-muted"> / 5</span>
-        </p>
-        <div className="mt-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-          <Stat label="Ticket medio" value={metrics.ticket_medio ? formatCOP(metrics.ticket_medio) : "—"} />
-          <Stat label="CAC" value={metrics.cac ? formatCOP(metrics.cac) : "—"} />
-          <Stat label="LTV est." value={metrics.ltv ? formatCOP(metrics.ltv) : "—"} />
-          <Stat label="Salud comercial" value={metrics.salud_comercial ? `${metrics.salud_comercial}/100` : "—"} />
-        </div>
-      </section>
-
+      {/* ── Reconocimiento ── */}
       {report.reconocimiento && (
         <section className="mb-8 rounded-3xl border border-ribuzz-accent/18 bg-white/[0.035] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
           <p className="text-xs uppercase tracking-widest text-ribuzz-pink">
@@ -151,35 +153,55 @@ export default async function ResultsPage({
         </section>
       )}
 
+      {/* ── Insight hero: lectura principal + fractura silenciosa ── */}
+      <section className="mb-10">
+        {/* Lectura principal destacada */}
+        <div className="mb-6 rounded-3xl border border-ribuzz-accent/20 bg-gradient-to-br from-ribuzz-accent/[0.05] to-transparent p-7">
+          <p className="text-xs uppercase tracking-widest text-ribuzz-accent mb-3">La lectura de tu negocio</p>
+          <p className="text-xl font-semibold leading-relaxed text-ribuzz-primary">{report.lectura_principal}</p>
+        </div>
+        {/* Fractura silenciosa */}
+        {report.fractura_silenciosa && (
+          <div className="rounded-3xl border border-yellow-500/25 bg-yellow-500/[0.06] p-6">
+            <p className="text-xs font-bold uppercase tracking-widest text-yellow-400 mb-3">⚡ La fractura silenciosa</p>
+            <p className="text-sm leading-relaxed text-ribuzz-primary">{report.fractura_silenciosa}</p>
+          </div>
+        )}
+      </section>
+
       {/* ── Top 3 fugas ── */}
       <section className="mb-10">
         <FugasCard fugas={fugas} />
       </section>
 
-      {/* ── Reporte ── */}
+      {/* ── Siguiente paso standalone ── */}
+      {report.siguiente_paso && (
+        <section className="mb-8 rounded-3xl border border-ribuzz-cyan/30 bg-gradient-to-br from-ribuzz-cyan/[0.06] to-transparent p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-lg">⏱</span>
+            <p className="text-sm font-bold uppercase tracking-widest text-ribuzz-cyan">Tu siguiente paso — próximos 7 días</p>
+          </div>
+          <p className="text-sm leading-relaxed text-ribuzz-primary whitespace-pre-line">{report.siguiente_paso}</p>
+        </section>
+      )}
+
+      {/* ── FugaSelector ── */}
+      {fugas.length > 0 && (
+        <FugaSelector
+          fugas={fugas}
+          acciones={acciones}
+          mensajeBase={playbook.mensaje_base ?? ""}
+          companyName={company?.name ?? "tu empresa"}
+          canal={playbook.canal_sugerido ?? "WhatsApp"}
+        />
+      )}
+
+      {/* ── Situación actual (solo el texto, sin fractura ni siguiente_paso) ── */}
       <section className="glow-card mb-10 rounded-3xl p-6">
         <h2 className="text-lg font-semibold">Situación actual</h2>
         <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-ribuzz-primary">
           {report.situacion_actual}
         </p>
-
-        {/* v2: Fractura silenciosa */}
-        {report.fractura_silenciosa && (
-          <div className="mt-5 rounded-2xl border border-yellow-500/25 bg-yellow-500/[0.07] p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-yellow-400">
-              La fractura silenciosa
-            </p>
-            <p className="mt-1 text-sm leading-relaxed text-ribuzz-primary">
-              {report.fractura_silenciosa}
-            </p>
-          </div>
-        )}
-
-        {/* Siguiente paso */}
-        <div className="mt-5 rounded-2xl border border-ribuzz-accent/18 bg-ribuzz-accent/[0.045] p-4 text-sm">
-          <p className="font-semibold text-ribuzz-pink">Siguiente paso (7 días):</p>
-          <p className="mt-1 text-ribuzz-muted">{report.siguiente_paso}</p>
-        </div>
       </section>
 
       {/* ── 14 variables (expandibles) ── */}
@@ -239,16 +261,25 @@ export default async function ResultsPage({
         <p className="mt-2 text-sm text-white/80">
           Agenda 30 minutos para revisar tu diagnóstico contigo y definir próximos pasos.
         </p>
-        <a
-          href={`https://wa.me/573332541346?text=${encodeURIComponent(
-            `Hola, quiero revisar mi diagnóstico de ${company?.name ?? ""}.`
-          )}`}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-4 inline-flex h-11 items-center rounded-full border border-ribuzz-accent/28 bg-gradient-to-br from-[#211326] to-[#3A2148] px-5 font-bold text-white shadow-[0_0_24px_rgba(230,37,255,0.14)] transition hover:border-ribuzz-accent/45"
-        >
-          Hablar con RiBuzz
-        </a>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <ShareButton
+            companyName={company?.name ?? "Mi empresa"}
+            scoreGlobal={Number(score.score_global ?? 0)}
+            lecturaPrincipal={report.lectura_principal}
+            siguientePaso={report.siguiente_paso}
+            diagnosticId={diagnosticId}
+          />
+          <a
+            href={`https://wa.me/573332541346?text=${encodeURIComponent(
+              `Hola, quiero revisar mi diagnóstico de ${company?.name ?? ""}.`
+            )}`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-11 items-center rounded-full border border-ribuzz-accent/28 bg-gradient-to-br from-[#211326] to-[#3A2148] px-5 font-bold text-white shadow-[0_0_24px_rgba(230,37,255,0.14)] transition hover:border-ribuzz-accent/45"
+          >
+            Hablar con RiBuzz
+          </a>
+        </div>
       </div>
     </main>
   );
